@@ -294,3 +294,24 @@
     animation-iteration-count: 1 !important;
   }
 }
+@layer components {
+  .auth-input {
+    width: 100%;
+    height: 2.75rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--border);
+    background: color-mix(in oklch, var(--background) 70%, transparent);
+    padding-inline: 2.5rem 0.875rem;
+    font-size: 16px; /* يمنع الآيفون من عمل زووم */
+    color: var(--foreground);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .auth-input::placeholder {
+    color: var(--muted-foreground);
+  }
+  .auth-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--primary) 20%, transparent);
+  }
+}
