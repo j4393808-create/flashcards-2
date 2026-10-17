@@ -35,6 +35,7 @@ export async function signIn(_prev: AuthState, formData: FormData): Promise<Auth
     }
     return { error: 'Invalid email or password.' }
   }
+  await supabase.auth.signOut({ scope: 'others' })
   redirect(safeNext(formData.get('next')))
 }
 
