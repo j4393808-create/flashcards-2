@@ -1,9 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Check, Eye, Keyboard, MousePointerClick, RotateCcw, Shuffle, X } from 'lucide-react'
+import { useEffect, useEffectEvent, useMemo, useState } from 'react'
+import { Check, ChevronLeft, ChevronRight, Eye, Keyboard, MousePointerClick, RotateCcw, Shuffle, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { sfx } from '@/lib/sound'
 import { normalizeAnswer, parseCloze, type Deck } from '@/lib/cloze'
 
 type Mode = 'tap' | 'type'
@@ -44,13 +45,36 @@ export function StudySession({ deck }: { deck: Deck }) {
     setAnswers({})
   }
 
-  const revealAll = useCallback(() => {
+  const nextHidden = Array.from({ length: blankCount }, (_, i) => i).find((i) => !revealed.has(i))
+
+  const revealOne = (index: number) => {
+    if (revealed.has(index)) return
+    sfx.reveal(index)
+    setRevealed((r) => new Set(r).add(index))
+  }
+
+  const revealNext = () => {
+    if (nextHidden !== undefined) revealOne(nextHidden)
+  }
+
+  const revealAll = () => {
+    if (allRevealed) return
+    sfx.revealAll()
     setRevealed(new Set(Array.from({ length: blankCount }, (_, i) => i)))
-  }, [blankCount])
+  }
 
   const startSession = (ids: string[], shuffled = false) => {
+    sfx.flip()
     setQueue(shuffled ? shuffle(ids) : ids)
     setPosition(0)
+    resetCard()
+  }
+
+  const goTo = (delta: number) => {
+    const target = Math.min(Math.max(position + delta, 0), queue.length)
+    if (target === position) return
+    sfx.flip()
+    setPosition(target)
     resetCard()
   }
 
@@ -61,21 +85,49 @@ export function StudySession({ deck }: { deck: Deck }) {
     else next.delete(card.id)
     setKnown(next)
     localStorage.setItem(storageKey, JSON.stringify([...next]))
+    if (gotIt) sfx.correct()
+    else sfx.wrong()
+    if (position + 1 >= queue.length) setTimeout(() => sfx.fanfare(), 250)
+    else setTimeout(() => sfx.flip(), 120)
     setPosition((p) => p + 1)
     resetCard()
   }
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement) return
-      if (e.code === 'Space' && card) {
-        e.preventDefault()
-        revealAll()
-      }
+  const switchMode = (m: Mode) => {
+    setMode(m)
+    resetCard()
+  }
+
+  const handleKey = useEffectEvent((e: KeyboardEvent) => {
+    const t = e.target as HTMLElement | null
+    if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t?.isContentEditable) return
+    if (e.metaKey || e.ctrlKey || e.altKey) return
+    const key = e.key.toLowerCase()
+    const isRtl = document.documentElement.dir === 'rtl'
+    const forward = isRtl ? 'arrowleft' : 'arrowright'
+    const backward = isRtl ? 'arrowright' : 'arrowleft'
+
+    if (key === forward || key === 'n') return e.preventDefault(), goTo(1)
+    if (key === backward || key === 'p') return e.preventDefault(), goTo(-1)
+    if (key === 's') return startSession(queue, true)
+    if (key === 't') return switchMode(mode === 'tap' ? 'type' : 'tap')
+    if (!card) return
+    if (e.code === 'Space' || key === 'arrowdown') {
+      e.preventDefault()
+      if (mode === 'type') return revealAll()
+      return allRevealed ? undefined : revealNext()
     }
+    if (key === 'a') return revealAll()
+    if (key === 'r') return resetCard()
+    if (allRevealed && (key === 'enter' || key === '2')) return e.preventDefault(), rate(true)
+    if (allRevealed && (key === 'backspace' || key === '1')) return e.preventDefault(), rate(false)
+  })
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => handleKey(e)
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [card, revealAll])
+  }, [])
 
   const remaining = deck.cards.filter((c) => !known.has(c.id)).map((c) => c.id)
   const progress = Math.round((known.size / deck.cards.length) * 100)
@@ -84,10 +136,10 @@ export function StudySession({ deck }: { deck: Deck }) {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-1 rounded-lg border bg-card p-1" role="group" aria-label="طريقة التسميع">
-          <ModeButton active={mode === 'tap'} onClick={() => { setMode('tap'); resetCard() }}>
+          <ModeButton active={mode === 'tap'} onClick={() => switchMode('tap')}>
             <MousePointerClick className="size-4" aria-hidden /> اضغط واكشف
           </ModeButton>
-          <ModeButton active={mode === 'type'} onClick={() => { setMode('type'); resetCard() }}>
+          <ModeButton active={mode === 'type'} onClick={() => switchMode('type')}>
             <Keyboard className="size-4" aria-hidden /> اكتب الإجابة
           </ModeButton>
         </div>
@@ -123,11 +175,30 @@ export function StudySession({ deck }: { deck: Deck }) {
       </div>
 
       {card ? (
-        <article className="rounded-2xl border bg-card p-6 md:p-8">
+        <article key={`${card.id}-${position}`} className="card-flip rounded-2xl border bg-card/95 p-6 shadow-lg backdrop-blur md:p-8">
           <div className="mb-5 flex items-center justify-between text-xs text-muted-foreground">
-            <span>
-              كارت {position + 1} من {queue.length}
-            </span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => goTo(-1)}
+                disabled={position === 0}
+                aria-label="الكارت اللي فات"
+                className="flex size-7 items-center justify-center rounded-full border transition-colors hover:bg-accent disabled:opacity-40"
+              >
+                <ChevronRight className="size-4" aria-hidden />
+              </button>
+              <span className="px-1">
+                كارت {position + 1} من {queue.length}
+              </span>
+              <button
+                type="button"
+                onClick={() => goTo(1)}
+                aria-label="الكارت اللي بعده"
+                className="flex size-7 items-center justify-center rounded-full border transition-colors hover:bg-accent"
+              >
+                <ChevronLeft className="size-4" aria-hidden />
+              </button>
+            </div>
             {known.has(card.id) && (
               <span className="flex items-center gap-1 text-success">
                 <Check className="size-3.5" aria-hidden /> محفوظ
@@ -147,7 +218,11 @@ export function StudySession({ deck }: { deck: Deck }) {
                     value={answers[seg.index] ?? ''}
                     checked={isOpen}
                     onChange={(v) => setAnswers((a) => ({ ...a, [seg.index]: v }))}
-                    onCheck={() => setRevealed((r) => new Set(r).add(seg.index))}
+                    onCheck={(correct) => {
+                      if (correct) sfx.correct()
+                      else sfx.wrong()
+                      setRevealed((r) => new Set(r).add(seg.index))
+                    }}
                   />
                 )
               }
@@ -155,13 +230,15 @@ export function StudySession({ deck }: { deck: Deck }) {
                 <button
                   key={i}
                   type="button"
-                  onClick={() => setRevealed((r) => new Set(r).add(seg.index))}
+                  data-no-click-sound
+                  onClick={() => revealOne(seg.index)}
                   aria-label={isOpen ? seg.value : `فراغ رقم ${seg.index + 1}، اضغط للكشف`}
                   className={cn(
                     'mx-0.5 inline-block rounded-md px-1.5 align-baseline leading-normal transition-colors',
                     isOpen
-                      ? 'bg-highlight font-semibold text-highlight-foreground'
+                      ? 'word-pop bg-highlight font-semibold text-highlight-foreground'
                       : 'border-b-2 border-dashed border-primary bg-accent text-transparent hover:bg-accent/70',
+                    !isOpen && seg.index === nextHidden && 'blank-next',
                   )}
                   style={isOpen ? undefined : { minWidth: `${Math.min(Math.max(seg.value.length, 4), 24)}ch` }}
                 >
@@ -175,16 +252,18 @@ export function StudySession({ deck }: { deck: Deck }) {
             {allRevealed ? (
               <div className="flex w-full gap-3">
                 <Button size="lg" variant="outline" className="flex-1" onClick={() => rate(false)}>
-                  <X aria-hidden /> لسه
+                  <X aria-hidden /> لسه <kbd className="ms-1 rounded border px-1 text-[10px] opacity-60">1</kbd>
                 </Button>
                 <Button size="lg" className="flex-1 bg-success text-primary-foreground hover:bg-success/90" onClick={() => rate(true)}>
-                  <Check aria-hidden /> حفظتها
+                  <Check aria-hidden /> حفظتها <kbd className="ms-1 rounded border border-current/40 px-1 text-[10px] opacity-70">Enter</kbd>
                 </Button>
               </div>
             ) : (
               <>
                 <span className="text-xs text-muted-foreground">
-                  {mode === 'tap' ? 'اضغط على أي فراغ، أو مسافة لكشف الكل' : 'اكتب واضغط Enter للتصحيح'}
+                  {mode === 'tap'
+                    ? 'Space تكشف الكلمة اللي بعدها بالترتيب · A تكشف الكل · ← → للتقليب'
+                    : 'اكتب واضغط Enter للتصحيح · Space لكشف الكل'}
                 </span>
                 <Button size="lg" onClick={revealAll}>
                   <Eye aria-hidden /> اكشف الكل
@@ -239,8 +318,9 @@ function TypedBlank({
   value: string
   checked: boolean
   onChange: (v: string) => void
-  onCheck: () => void
+  onCheck: (correct: boolean) => void
 }) {
+  const check = () => onCheck(normalizeAnswer(value) === normalizeAnswer(answer))
   const correct = checked && normalizeAnswer(value) === normalizeAnswer(answer)
   const width = `${Math.min(Math.max(answer.length, 4), 24) + 2}ch`
 
@@ -266,9 +346,9 @@ function TypedBlank({
       onChange={(e) => onChange(e.target.value)}
       onKeyDown={(e) => {
         if (e.nativeEvent.isComposing || e.keyCode === 229) return
-        if (e.key === 'Enter') onCheck()
+        if (e.key === 'Enter') check()
       }}
-      onBlur={() => value.trim() && onCheck()}
+      onBlur={() => value.trim() && check()}
       aria-label="اكتب الكلمة الناقصة"
       className="mx-0.5 inline-block rounded-md border-b-2 border-primary bg-accent px-1.5 text-base leading-normal outline-none focus:ring-2 focus:ring-ring"
       style={{ width }}

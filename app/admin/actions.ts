@@ -1,35 +1,11 @@
 'use server'
 
 import { randomInt } from 'node:crypto'
-import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
-import { ADMIN_COOKIE, adminSessionValue, requireAdmin, safeEqual } from '@/lib/admin-auth'
+import { requireAdmin } from '@/lib/admin-auth'
 import { getDeck } from '@/lib/decks'
 import { db } from '@/lib/supabase/admin'
 import type { Card, Deck } from '@/lib/cloze'
-
-export type LoginState = { error: string } | null
-
-export async function adminLogin(_prev: LoginState, formData: FormData): Promise<LoginState> {
-  const password = String(formData.get('password') ?? '')
-  const expected = process.env.ADMIN_PASSWORD
-  if (!expected) return { error: 'ADMIN_PASSWORD is not configured for this project.' }
-  if (!safeEqual(password, expected)) return { error: 'Incorrect password.' }
-  ;(await cookies()).set(ADMIN_COOKIE, adminSessionValue()!, {
-    httpOnly: true,
-    secure: true,
-    sameSite: 'none',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 30,
-  })
-  revalidatePath('/admin')
-  return null
-}
-
-export async function adminLogout() {
-  ;(await cookies()).delete(ADMIN_COOKIE)
-  revalidatePath('/admin')
-}
 
 const DECK_ID_RE = /^[a-z0-9-]+$/
 
