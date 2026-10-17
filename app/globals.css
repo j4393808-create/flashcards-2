@@ -89,97 +89,39 @@
 }
 
 .cursor-ring {
-  position: fixed;
-  left: 0;
-  top: 0;
-  width: 36px;
-  height: 36px;
-  border-radius: 18px;
+  position: fixed; left: 0; top: 0; width: 36px; height: 36px;
   border: 2px solid color-mix(in oklch, var(--primary) 70%, transparent);
-  opacity: 0;
-  pointer-events: none;
-  z-index: 9999;
-  display: grid;
-  place-items: center;
-  box-sizing: border-box;
-  /* width/height/radius/transform are animated by JS (rAF) — don't transition them here */
-  transition: background 0.2s, border-color 0.2s, opacity 0.2s, scale 0.15s;
+  border-radius: 18px; opacity: 0; pointer-events: none;
+  display: grid; place-items: center;
+  transition: background .2s, border-color .2s, opacity .2s, scale .15s;
   will-change: transform, width, height;
 }
 .cursor-ring[data-active='true'] {
   border-color: var(--highlight);
   background: color-mix(in oklch, var(--highlight) 22%, transparent);
 }
-.cursor-ring[data-down='true'] {
-  scale: 0.9;
+.cursor-ring[data-down='true'] { scale: .9; }
+
+.cursor-ring .ic-hand, .cursor-ring .ic-grab {
+  position: absolute; width: 16px; height: 16px; opacity: 0; transition: opacity .15s;
 }
-.cursor-ring[data-grab='true'],
-.cursor-ring[data-grabbing='true'] {
-  border-color: var(--coral);
-  background: color-mix(in oklch, var(--coral) 16%, transparent);
-}
-.cursor-ring .ic-hand,
-.cursor-ring .ic-grab {
-  position: absolute;
-  width: 18px;
-  height: 18px;
-  color: var(--coral);
-  opacity: 0;
-  transition: opacity 0.15s;
-}
-.cursor-ring[data-grab='true'] .ic-hand,
-.cursor-ring[data-grabbing='true'] .ic-grab {
-  opacity: 1;
-}
+.cursor-ring[data-grab='true'] .ic-hand { opacity: 1; }
+.cursor-ring[data-grabbing='true'] .ic-grab { opacity: 1; }
+
 .cursor-dot {
-  position: fixed;
-  left: 0;
-  top: 0;
-  width: 6px;
-  height: 6px;
-  margin: -3px 0 0 -3px;
-  border-radius: 9999px;
-  background: var(--coral);
-  box-shadow: 0 0 10px var(--coral);
-  opacity: 0;
-  pointer-events: none;
-  z-index: 9999;
-  will-change: transform;
-  transition: opacity 0.2s;
+  position: fixed; left: 0; top: 0; width: 6px; height: 6px;
+  margin: -3px 0 0 -3px; border-radius: 9999px; opacity: 0;
+  background: var(--coral); box-shadow: 0 0 10px var(--coral);
+  transition: opacity .2s; pointer-events: none;
 }
-.cursor-dot[data-hide='true'] {
-  opacity: 0 !important;
-}
+.cursor-dot[data-hide='true'] { opacity: 0 !important; }
+
 .cursor-ripple {
-  position: fixed;
-  width: 14px;
-  height: 14px;
-  margin: -7px 0 0 -7px;
-  border-radius: 9999px;
-  border: 2px solid var(--coral);
-  pointer-events: none;
-  animation: cursor-ripple 0.5s ease-out forwards;
+  position: fixed; width: 12px; height: 12px; margin: -6px 0 0 -6px;
+  border-radius: 9999px; border: 2px solid var(--highlight);
+  animation: ripple .5s ease-out forwards; pointer-events: none;
 }
-@keyframes cursor-ripple {
-  to {
-    transform: scale(4);
-    opacity: 0;
-  }
-}
-.cursor-spark {
-  position: fixed;
-  width: 6px;
-  height: 6px;
-  margin: -3px 0 0 -3px;
-  border-radius: 9999px;
-  animation: spark 0.55s ease-out forwards;
-}
-@keyframes spark {
-  to {
-    transform: translate(var(--dx), var(--dy)) scale(0);
-    opacity: 0;
-  }
-}
+@keyframes ripple { to { transform: scale(4); opacity: 0; } }
 
 .blob {
   position: absolute;
