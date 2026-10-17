@@ -25,10 +25,10 @@ export function AuthForm({ next }: { next: string }) {
   return (
     <div className="rise-in relative w-full max-w-md justify-self-center" style={{ animationDelay: '120ms' }}>
       <div className="glow-border rounded-3xl p-px">
-        <div className="rounded-3xl bg-card/90 p-6 shadow-2xl backdrop-blur-xl md:p-8">
+        <div className="rounded-3xl bg-card/90 p-5 shadow-2xl backdrop-blur-xl sm:p-6 md:p-8">
           <div className="mb-6 flex flex-col items-center gap-3 text-center md:hidden">
             <Logo size={56} className="logo-glow" />
-            <span className="text-gradient text-2xl font-bold">Sammaa</span>
+            <span className="text-gradient text-2xl font-bold">Kart w Ketab</span>
           </div>
 
           <div className="relative mb-6 grid grid-cols-2 rounded-xl bg-muted p-1" role="tablist">
@@ -56,7 +56,7 @@ export function AuthForm({ next }: { next: string }) {
             ))}
           </div>
 
-          <h2 className="text-2xl font-bold">{tab === 'signin' ? 'Welcome back' : 'Start memorizing'}</h2>
+          <h2 className="text-xl font-bold sm:text-2xl">{tab === 'signin' ? 'Welcome back' : 'Start memorizing'}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {tab === 'signin' ? 'Sign in to continue your study sessions.' : 'Create a free account in seconds.'}
           </p>
@@ -95,7 +95,7 @@ export function AuthForm({ next }: { next: string }) {
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
-                {showPassword ? <EyeOff className="size-4" aria-hidden /> : <Eye className="size-4" aria-hidden />}
+                {showPassword ? <EyeOff className="size-[18px]" aria-hidden /> : <Eye className="size-[18px]" aria-hidden />}
               </button>
             </Field>
 
@@ -135,7 +135,7 @@ function Field({
         {label}
       </label>
       <div className="relative">
-        <Icon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-primary" />
+        <Icon className="pointer-events-none absolute left-3.5 top-1/2 size-[18px] shrink-0 -translate-y-1/2 text-primary" />
         {children}
       </div>
     </div>
