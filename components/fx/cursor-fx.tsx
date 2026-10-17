@@ -25,6 +25,28 @@ export function CursorFx() {
     let visible = false
     let raf = 0
 
+    // Hit-test from the real pointer position (not e.target) so it stays correct
+    // during pointer capture (box-select), after scroll, and when modals open/close.
+    const refresh = () => {
+      if (!visible) return
+      const el = document.elementFromPoint(x, y)
+      const hit = el?.closest?.(INTERACTIVE) ?? null
+      const card = el?.closest?.('[data-card-id]') ?? null
+      const field = el?.closest?.('input, textarea, [contenteditable="true"]') ?? null
+      const dragging = document.body.dataset.dragging === 'true'
+      // magnetic only on small buttons/links
+      if (hit && !card) {
+        const r = hit.getBoundingClientRect()
+        magnet = r.width < 260 && r.height < 90 ? hit : null
+      } else magnet = null
+      const grab = !!card && !hit && !field && !dragging
+      ring.dataset.active = String(!!hit)
+      ring.dataset.grab = String(grab)
+      ring.dataset.grabbing = String(dragging)
+      // native text caret is shown over fields, so keep our dot hidden there
+      dot.dataset.hide = String(!!magnet || grab || dragging || !!field)
+    }
+
     const onMove = (e: PointerEvent | DragEvent) => {
       if ('pointerType' in e && e.pointerType !== 'mouse') return
       x = e.clientX
@@ -36,19 +58,7 @@ export function CursorFx() {
         ring.style.opacity = '1'
         dot.style.opacity = '1'
       }
-      const el = e.target as Element | null
-      const hit = el?.closest?.(INTERACTIVE) ?? null
-      const card = el?.closest?.('[data-card-id]') ?? null
-      const dragging = document.body.dataset.dragging === 'true'
-      // magnetic only on small buttons/links
-      if (hit && !card) {
-        const r = hit.getBoundingClientRect()
-        magnet = r.width < 260 && r.height < 90 ? hit : null
-      } else magnet = null
-      ring.dataset.active = String(!!hit)
-      ring.dataset.grab = String(!!card && !hit && !dragging)
-      ring.dataset.grabbing = String(dragging)
-      dot.dataset.hide = String(!!magnet || (!!card && !hit) || dragging)
+      refresh()
     }
 
     const onDown = (e: PointerEvent) => {
@@ -63,9 +73,11 @@ export function CursorFx() {
     }
     const onUp = () => {
       ring.dataset.down = 'false'
-      ring.dataset.grabbing = 'false'
+      // let React clear body[data-dragging] first, then re-evaluate
+      requestAnimationFrame(refresh)
     }
     const onLeave = () => {
+      ring.dataset.down = 'false'
       visible = false
       ring.style.opacity = '0'
       dot.style.opacity = '0'
@@ -108,7 +120,9 @@ export function CursorFx() {
     window.addEventListener('pointercancel', onUp)
     window.addEventListener('drop', onUp)
     window.addEventListener('dragend', onUp)
-    document.documentElement.addEventListener('pointerleave', onLeave)
+    window.addEventListener('scroll', refresh, true)
+    window.addEventListener('blur', onLeave)
+    document.addEventListener('mouseleave', onLeave)
     return () => {
       cancelAnimationFrame(raf)
       window.removeEventListener('pointermove', onMove)
@@ -118,7 +132,9 @@ export function CursorFx() {
       window.removeEventListener('pointercancel', onUp)
       window.removeEventListener('drop', onUp)
       window.removeEventListener('dragend', onUp)
-      document.documentElement.removeEventListener('pointerleave', onLeave)
+      window.removeEventListener('scroll', refresh, true)
+    window.removeEventListener('blur', onLeave)
+    document.removeEventListener('mouseleave', onLeave)
     }
   }, [])
 
