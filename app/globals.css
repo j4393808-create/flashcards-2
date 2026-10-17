@@ -92,12 +92,35 @@
   top: 0;
   width: 34px;
   height: 34px;
-  margin: -17px 0 0 -17px;
   border-radius: 9999px;
   border: 2px solid color-mix(in oklch, var(--primary) 70%, transparent);
   opacity: 0;
-transition: width 0.2s, height 0.2s, margin 0.2s, background 0.2s, border-color 0.2s, opacity 0.2s, border-radius 0.25s;
-  will-change: transform;
+  pointer-events: none;
+  z-index: 9999;
+  transition: background 0.2s, border-color 0.2s, opacity 0.2s, border-radius 0.25s, scale 0.15s;
+  will-change: transform, width, height;
+}
+.cursor-ring > span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 9999px;
+  background: var(--coral);
+  box-shadow: 0 0 10px var(--coral);
+  transition: opacity 0.2s;
+}
+.cursor-ring[data-snapped='true'] {
+  border-color: var(--highlight);
+  background: color-mix(in oklch, var(--highlight) 22%, transparent);
+}
+.cursor-ring[data-snapped='true'] > span {
+  opacity: 0;
+}
+.cursor-ring[data-down='true'] {
+  scale: 0.9;
 }
 .cursor-ring > span {
   position: absolute;
