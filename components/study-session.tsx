@@ -26,7 +26,7 @@ export function StudySession({ deck }: { deck: Deck }) {
   const [mode, setMode] = useState<Mode>('tap')
   const [revealed, setRevealed] = useState<Set<number>>(new Set())
   const [answers, setAnswers] = useState<Record<number, string>>({})
-
+  const [baseQueue, setBaseQueue] = useState<string[] | null>(null)
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(storageKey) ?? '[]') as string[]
@@ -68,6 +68,14 @@ export function StudySession({ deck }: { deck: Deck }) {
     setQueue(shuffled ? shuffle(ids) : ids)
     setPosition(0)
     resetCard()
+    setBaseQueue(null)
+  }
+
+  const toggleShuffle = () => {
+    if (baseQueue) return startSession(baseQueue)
+    const original = queue
+    startSession(queue, true)
+    setBaseQueue(original)
   }
 
   const goTo = (delta: number) => {
@@ -109,20 +117,16 @@ export function StudySession({ deck }: { deck: Deck }) {
 
     if (key === forward || key === 'n') return e.preventDefault(), goTo(1)
     if (key === backward || key === 'p') return e.preventDefault(), goTo(-1)
-    if (key === 's') return startSession(queue, true)
-    if (key === 't') return switchMode(mode === 'tap' ? 'type' : 'tap')
-    if (!card) return
+    if (allRevealed && (key === 'arrowup' || key === 'enter')) return e.preventDefault(), rate(true)
+    if (allRevealed && (key === 'arrowdown' || key === 'backspace')) return e.preventDefault(), rate(false)
     if (e.code === 'Space' || key === 'arrowdown') {
       e.preventDefault()
       if (mode === 'type') return revealAll()
       return allRevealed ? undefined : revealNext()
     }
+    if (key === 'arrowup') return e.preventDefault()
     if (key === 'a') return revealAll()
     if (key === 'r') return resetCard()
-    if (allRevealed && (key === 'enter' || key === '2')) return e.preventDefault(), rate(true)
-    if (allRevealed && (key === 'backspace' || key === '1')) return e.preventDefault(), rate(false)
-  })
-
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => handleKey(e)
     window.addEventListener('keydown', onKey)
@@ -134,8 +138,8 @@ export function StudySession({ deck }: { deck: Deck }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-1 rounded-lg border bg-card p-1" role="group" aria-label="طريقة التسميع">
+            <div className="grid gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
+        <div className="flex w-full items-center gap-1 rounded-lg border bg-card p-1 sm:w-auto" role="group" aria-label="طريقة التسميع">
           <ModeButton active={mode === 'tap'} onClick={() => switchMode('tap')}>
             <MousePointerClick className="size-4" aria-hidden /> اضغط واكشف
           </ModeButton>
@@ -143,9 +147,15 @@ export function StudySession({ deck }: { deck: Deck }) {
             <Keyboard className="size-4" aria-hidden /> اكتب الإجابة
           </ModeButton>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => startSession(queue, true)}>
-            <Shuffle aria-hidden /> لخبط الترتيب
+        <div className="grid grid-cols-2 gap-2 sm:flex">
+          <Button
+            variant={baseQueue ? 'default' : 'outline'}
+            size="sm"
+            aria-pressed={!!baseQueue}
+            onClick={toggleShuffle}
+          >
+            {baseQueue ? <RotateCcw aria-hidden /> : <Shuffle aria-hidden />}
+            {baseQueue ? 'رجّع الترتيب' : 'لخبط الترتيب'}
           </Button>
           <Button
             variant="outline"
@@ -175,7 +185,7 @@ export function StudySession({ deck }: { deck: Deck }) {
       </div>
 
       {card ? (
-        <article key={`${card.id}-${position}`} className="card-flip rounded-2xl border bg-card/95 p-6 shadow-lg backdrop-blur md:p-8">
+        <article key={`${card.id}-${position}`} className="card-flip rounded-2xl border bg-card/95 p-4 shadow-lg backdrop-blur sm:p-6 md:p-8">
           <div className="mb-5 flex items-center justify-between text-xs text-muted-foreground">
             <div className="flex items-center gap-1">
               <button
@@ -206,7 +216,7 @@ export function StudySession({ deck }: { deck: Deck }) {
             )}
           </div>
 
-          <p dir="auto" className="text-lg leading-[2.4] md:text-xl">
+          <p dir="auto" className="text-base leading-[2.3] sm:text-lg sm:leading-[2.4] md:text-xl">
             {segments.map((seg, i) => {
               if (seg.type === 'text') return <span key={i}>{seg.value}</span>
               const isOpen = revealed.has(seg.index)
@@ -252,20 +262,20 @@ export function StudySession({ deck }: { deck: Deck }) {
             {allRevealed ? (
               <div className="flex w-full gap-3">
                 <Button size="lg" variant="outline" className="flex-1" onClick={() => rate(false)}>
-                  <X aria-hidden /> لسه <kbd className="ms-1 rounded border px-1 text-[10px] opacity-60">1</kbd>
+                  <X aria-hidden /> لسه <kbd className="ms-1 rounded border px-1 text-[10px] opacity-60">↓</kbd>
                 </Button>
                 <Button size="lg" className="flex-1 bg-success text-primary-foreground hover:bg-success/90" onClick={() => rate(true)}>
-                  <Check aria-hidden /> حفظتها <kbd className="ms-1 rounded border border-current/40 px-1 text-[10px] opacity-70">Enter</kbd>
+                  <Check aria-hidden /> حفظتها <kbd className="ms-1 rounded border border-current/40 px-1 text-[10px] opacity-70">↑</kbd>
                 </Button>
               </div>
             ) : (
               <>
-                <span className="text-xs text-muted-foreground">
+                <span className="hidden text-xs text-muted-foreground sm:block">
                   {mode === 'tap'
-                    ? 'Space تكشف الكلمة اللي بعدها بالترتيب · A تكشف الكل · ← → للتقليب'
+                    ? 'Space تكشف الكلمة اللي بعدها · A تكشف الكل · ↑ حفظتها · ↓ لسه · ← → للتقليب'
                     : 'اكتب واضغط Enter للتصحيح · Space لكشف الكل'}
                 </span>
-                <Button size="lg" onClick={revealAll}>
+                <Button size="lg" className="w-full sm:w-auto" onClick={revealAll}>
                   <Eye aria-hidden /> اكشف الكل
                 </Button>
               </>
@@ -298,7 +308,8 @@ function ModeButton({ active, children, onClick }: { active: boolean; children: 
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors',
+        'flex flex-1 items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs transition-colors sm:flex-none sm:px-3 sm:text-sm'
+,
         active ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
       )}
     >
