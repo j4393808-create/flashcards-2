@@ -86,75 +86,57 @@
   }
 }
 
-.cursor-dot {
-  position: fixed;
-  left: 0;
-  top: 0;
-  width: 6px;
-  height: 6px;
-  margin: -3px 0 0 -3px;
-  border-radius: 9999px;
-  background: var(--primary);
-  box-shadow: 0 0 12px var(--primary);
-  opacity: 0;
-  transition: opacity 0.2s, scale 0.2s;
-  will-change: transform;
-}
-.cursor-dot[data-hide='true'] {
-  scale: 0;
-}
 .cursor-ring {
   position: fixed;
   left: 0;
   top: 0;
-  display: grid;
-  place-items: center;
-  color: var(--primary);
-  border: 1.5px solid color-mix(in oklch, var(--primary) 65%, transparent);
-  background: color-mix(in oklch, var(--primary) 6%, transparent);
-  backdrop-filter: blur(2px);
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border-radius: 9999px;
+  border: 2px solid color-mix(in oklch, var(--primary) 70%, transparent);
   opacity: 0;
-  transition: border-color 0.2s, background 0.2s, opacity 0.2s;
-  will-change: transform, width, height;
+transition: width 0.2s, height 0.2s, margin 0.2s, background 0.2s, border-color 0.2s, opacity 0.2s, border-radius 0.25s;
+  will-change: transform;
+}
+.cursor-ring > span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 9999px;
+  background: var(--coral);
+  box-shadow: 0 0 10px var(--coral);
 }
 .cursor-ring[data-active='true'] {
+  width: 52px;
+  height: 52px;
+  margin: -26px 0 0 -26px;
   border-color: var(--highlight);
-  background: color-mix(in oklch, var(--highlight) 16%, transparent);
+  background: color-mix(in oklch, var(--highlight) 22%, transparent);
 }
 .cursor-ring[data-down='true'] {
-  scale: 0.85;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
 }
-.cursor-ring svg {
-  position: absolute;
-  width: 16px;
-  height: 16px;
-  opacity: 0;
-  scale: 0.5;
-  transition: opacity 0.2s, scale 0.2s;
-}
-.cursor-ring[data-grab='true'] .ic-hand,
-.cursor-ring[data-grabbing='true'] .ic-grab {
-  opacity: 1;
-  scale: 1;
-}
-.cursor-ring[data-grabbing='true'] .ic-hand {
-  opacity: 0;
-}
-.cursor-ripple {
+.cursor-spark {
   position: fixed;
-  width: 10px;
-  height: 10px;
-  margin: -5px 0 0 -5px;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
   border-radius: 9999px;
-  border: 2px solid var(--primary);
-  animation: cursor-ripple 0.5s ease-out forwards;
+  animation: spark 0.55s ease-out forwards;
 }
-@keyframes cursor-ripple {
+@keyframes spark {
   to {
-    transform: scale(5);
+    transform: translate(var(--dx), var(--dy)) scale(0);
     opacity: 0;
   }
 }
+
 .blob {
   position: absolute;
   width: 42vmax;
