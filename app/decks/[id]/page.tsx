@@ -1,40 +1,60 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ArrowRight } from 'lucide-react'
+import { ArrowLeft, Lock } from 'lucide-react'
 import { SiteHeader } from '@/components/site-header'
 import { StudySession } from '@/components/study-session'
-import { decks, getDeck } from '@/lib/decks'
-
-export function generateStaticParams() {
-  return decks.map((deck) => ({ id: deck.id }))
-}
+import { RedeemForm } from '@/components/redeem-form'
+import { getDeck, getDeckMeta } from '@/lib/decks'
+import { canOpen, getAccess } from '@/lib/access'
 
 export async function generateMetadata({ params }: PageProps<'/decks/[id]'>): Promise<Metadata> {
-  const deck = getDeck((await params).id)
-  return { title: deck ? `${deck.title} | سمّع` : 'سمّع' }
+  const deck = await getDeckMeta((await params).id)
+  return { title: deck ? `${deck.title} | Sammaa` : 'Sammaa' }
 }
 
 export default async function DeckPage({ params }: PageProps<'/decks/[id]'>) {
-  const deck = getDeck((await params).id)
-  if (!deck) notFound()
+  const { id } = await params
+  const [meta, access] = await Promise.all([getDeckMeta(id), getAccess()])
+  if (!meta) notFound()
+  const open = canOpen(meta, access)
+  const deck = open ? await getDeck(id) : null
 
   return (
     <div className="min-h-dvh flex flex-col">
       <SiteHeader>
         <Link href="/" className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowRight className="size-4" aria-hidden />
-          كل الكتب
+          <ArrowLeft className="size-4" aria-hidden />
+          All decks
         </Link>
       </SiteHeader>
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
         <div className="mb-6">
-          <span className="text-xs font-medium text-primary">{deck.subject}</span>
+          <span className="text-xs font-medium text-primary">{meta.subject}</span>
           <h1 className="text-2xl font-bold" dir="auto">
-            {deck.title}
+            {meta.title}
           </h1>
         </div>
-        <StudySession deck={deck} />
+        {deck && deck.cards.length > 0 ? (
+          <StudySession deck={deck} />
+        ) : deck ? (
+          <p className="rounded-2xl border border-dashed p-10 text-center text-sm text-muted-foreground">
+            This deck has no cards yet.
+          </p>
+        ) : (
+          <div className="flex flex-col items-center gap-4 rounded-2xl border bg-card p-8 text-center">
+            <span className="flex size-12 items-center justify-center rounded-full bg-highlight text-highlight-foreground">
+              <Lock className="size-5" aria-hidden />
+            </span>
+            <div>
+              <h2 className="text-xl font-bold">This deck is paid content</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Enter the access code you received to unlock it on this device.
+              </p>
+            </div>
+            <RedeemForm className="w-full max-w-sm text-left" />
+          </div>
+        )}
       </main>
     </div>
   )

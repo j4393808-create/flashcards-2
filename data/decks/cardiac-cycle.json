@@ -1,8 +1,8 @@
 {
   "id": "cardiac-cycle",
   "title": "The Cardiac Cycle",
-  "subject": "فسيولوجي",
-  "description": "مثال: دورة القلب، الأصوات، ورسم القلب.",
+  "subject": "Physiology",
+  "description": "Example: the cardiac cycle, heart sounds, and the ECG.",
   "cards": [
     {
       "id": "cc-1",

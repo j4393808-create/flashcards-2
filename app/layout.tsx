@@ -10,8 +10,9 @@ const plex = IBM_Plex_Sans_Arabic({
 })
 
 export const metadata: Metadata = {
-  title: 'سمّع | فلاش كاردز طب بشري',
-  description: 'احفظ كتب الطب بنصها الأصلي بفلاش كاردز من نوع املأ الفراغ، وسمّع لنفسك.',
+  title: 'Sammaa | Medical Flashcards',
+  description:
+    'Memorize medical textbooks word for word with fill-in-the-blank flashcards and test yourself.',
   generator: 'v0.app',
   icons: {
     icon: [
@@ -30,7 +31,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="ar" dir="rtl" className={plex.variable}>
+    <html lang="en" dir="ltr" className={plex.variable}>
       <body className="font-sans antialiased">
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}

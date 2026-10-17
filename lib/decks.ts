@@ -1,9 +1,60 @@
-import cardiacCycle from '@/data/decks/cardiac-cycle.json'
-import membraneTransport from '@/data/decks/membrane-transport.json'
-import type { Deck } from './cloze'
+import 'server-only'
+import { db } from './supabase/admin'
+import { countBlanks, type Deck } from './cloze'
 
-export const decks: Deck[] = [membraneTransport as Deck, cardiacCycle as Deck]
+export type DeckSummary = Omit<Deck, 'cards'> & { cardCount: number; blankCount: number }
 
-export function getDeck(id: string) {
-  return decks.find((deck) => deck.id === id)
+type DeckRow = { id: string; title: string; subject: string; description: string; is_free: boolean }
+
+const toDeckMeta = (row: DeckRow): Omit<Deck, 'cards'> => ({
+  id: row.id,
+  title: row.title,
+  subject: row.subject,
+  description: row.description,
+  isFree: row.is_free,
+})
+
+export async function getDeckSummaries(): Promise<DeckSummary[]> {
+  const [decks, cards] = await Promise.all([
+    db().from('decks').select('id, title, subject, description, is_free').order('created_at'),
+    db().from('cards').select('deck_id, cloze'),
+  ])
+  if (decks.error) throw decks.error
+  if (cards.error) throw cards.error
+
+  const stats = new Map<string, { cards: number; blanks: number }>()
+  for (const card of cards.data) {
+    const s = stats.get(card.deck_id) ?? { cards: 0, blanks: 0 }
+    s.cards++
+    s.blanks += countBlanks(card.cloze)
+    stats.set(card.deck_id, s)
+  }
+
+  return (decks.data as DeckRow[]).map((row) => ({
+    ...toDeckMeta(row),
+    cardCount: stats.get(row.id)?.cards ?? 0,
+    blankCount: stats.get(row.id)?.blanks ?? 0,
+  }))
+}
+
+export async function getDeckMeta(id: string) {
+  const { data, error } = await db()
+    .from('decks')
+    .select('id, title, subject, description, is_free')
+    .eq('id', id)
+    .maybeSingle()
+  if (error) throw error
+  return data ? toDeckMeta(data as DeckRow) : null
+}
+
+export async function getDeck(id: string): Promise<Deck | null> {
+  const meta = await getDeckMeta(id)
+  if (!meta) return null
+  const { data, error } = await db()
+    .from('cards')
+    .select('id, cloze')
+    .eq('deck_id', id)
+    .order('position')
+  if (error) throw error
+  return { ...meta, cards: data }
 }

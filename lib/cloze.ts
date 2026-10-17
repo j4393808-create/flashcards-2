@@ -5,6 +5,7 @@ export type Deck = {
   title: string
   subject: string
   description: string
+  isFree: boolean
   cards: Card[]
 }
 
@@ -223,20 +224,20 @@ export function normalizeAnswer(value: string) {
 }
 
 export function buildPrompt(text: string) {
-  return `أنت بتساعدني أعمل فلاش كاردز (املأ الفراغ) من كتاب طب بشري.
+  return `You are helping me build fill-in-the-blank (cloze) flashcards from a medical textbook.
 
-المطلوب: طلّعلي قائمة بالكلمات أو العبارات المهمة اللي المفروض الطالب يحفظها من النص اللي تحت.
+Task: list the important words or phrases from the text below that a student should memorize.
 
-القواعد:
-- انسخ كل كلمة أو عبارة زي ما هي مكتوبة في النص بالظبط، حرف بحرف، ونفس اللغة.
-- كلمة أو عبارة واحدة في كل سطر، من غير ترقيم ومن غير أي شرح.
-- اختار: أسماء الأمراض، والأعضاء والتراكيب التشريحية، والهرمونات والإنزيمات والمستقبلات، والأدوية وجرعاتها، والقيم الطبيعية، والأسباب والنتائج، والمصطلحات العلمية، والتصنيفات.
-- العبارة تكون قصيرة (من كلمة لـ 4 كلمات) وليها معنى لوحدها.
-- ممنوع: حروف الجر، وأدوات الربط، والأفعال العامة زي is و causes و يكون، والجمل الكاملة.
-- الأرقام ووحداتها مش محتاج تكتبها، هتتفرّغ أوتوماتيك.
-- متوسط عبارة واحدة لكل 8 لـ 12 كلمة تقريباً.
+Rules:
+- Copy every word or phrase exactly as it appears in the text, character for character, in the same language.
+- One word or phrase per line, with no numbering and no explanation.
+- Pick: disease names, organs and anatomical structures, hormones, enzymes and receptors, drugs and doses, normal values, causes and effects, scientific terms, and classifications.
+- Keep each phrase short (1 to 4 words) and meaningful on its own.
+- Do not include: prepositions, conjunctions, generic verbs like "is" or "causes", or full sentences.
+- Skip numbers and their units; they are blanked automatically.
+- Aim for roughly one phrase per 8 to 12 words.
 
-النص:
+Text:
 """
 ${text.trim()}
 """`

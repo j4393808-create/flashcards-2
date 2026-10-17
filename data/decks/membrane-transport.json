@@ -1,8 +1,8 @@
 {
   "id": "membrane-transport",
   "title": "Transport through the Cell Membrane",
-  "subject": "فسيولوجي",
-  "description": "النقل عبر غشاء الخلية: النقل السلبي، الانتشار البسيط، والقنوات البروتينية.",
+  "subject": "Physiology",
+  "description": "Transport through the cell membrane: passive transport, simple diffusion, and protein channels.",
   "cards": [
     {
       "id": "mt-1",
