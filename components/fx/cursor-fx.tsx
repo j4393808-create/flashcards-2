@@ -52,6 +52,7 @@ export function CursorFx() {
     }
 
     const onDown = (e: PointerEvent) => {
+      if (e.pointerType !== 'mouse') return
       ring.dataset.down = 'true'
       const ripple = document.createElement('span')
       ripple.className = 'cursor-ripple'
@@ -60,7 +61,10 @@ export function CursorFx() {
       ripple.addEventListener('animationend', () => ripple.remove())
       layer.appendChild(ripple)
     }
-    const onUp = () => (ring.dataset.down = 'false')
+    const onUp = () => {
+      ring.dataset.down = 'false'
+      ring.dataset.grabbing = 'false'
+    }
     const onLeave = () => {
       visible = false
       ring.style.opacity = '0'
@@ -101,6 +105,8 @@ export function CursorFx() {
     window.addEventListener('dragover', onMove)
     window.addEventListener('pointerdown', onDown)
     window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onUp)
+    window.addEventListener('drop', onUp)
     window.addEventListener('dragend', onUp)
     document.documentElement.addEventListener('pointerleave', onLeave)
     return () => {
@@ -109,6 +115,8 @@ export function CursorFx() {
       window.removeEventListener('dragover', onMove)
       window.removeEventListener('pointerdown', onDown)
       window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
+      window.removeEventListener('drop', onUp)
       window.removeEventListener('dragend', onUp)
       document.documentElement.removeEventListener('pointerleave', onLeave)
     }
