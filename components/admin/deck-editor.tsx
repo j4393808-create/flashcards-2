@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CloudUpload, Download, Eraser, ListChecks, Loader2, Upload } from 'lucide-react'
+import { ClipboardPaste, CloudUpload, Copy, Download, Eraser, ListChecks, Loader2, Scissors, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { applyTerms, countBlanks, parseTerms, type Card, type Deck } from '@/lib/cloze'
 import type { DeckSummary } from '@/lib/decks'
@@ -72,6 +72,186 @@ export function DeckEditor({ existingDecks }: { existingDecks: DeckSummary[] }) 
     setCards((existing) => [...existing, ...cards])
     setPage(Math.max(0, Math.ceil(total / PAGE_SIZE) - 1))
   }
+    // ===== ترتيب الكروت زي File Explorer =====
+  const CLIP_KEY = 'sammaa-card-clipboard'
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [anchorId, setAnchorId] = useState<string | null>(null)
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
+  const [dragIds, setDragIds] = useState<string[] | null>(null)
+  const [dropAt, setDropAt] = useState<number | null>(null)
+  const [hasClip, setHasClip] = useState(false)
+  const [box, setBox] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null)
+  const listRef = useRef<HTMLOListElement>(null)
+
+  useEffect(() => {
+    setHasClip(!!localStorage.getItem(CLIP_KEY))
+  }, [])
+
+  const pickCard = (id: string, e: React.MouseEvent) => {
+    const ids = deck.cards.map((c) => c.id)
+    if (e.shiftKey && anchorId) {
+      const a = ids.indexOf(anchorId)
+      const b = ids.indexOf(id)
+      const [s, t] = a < b ? [a, b] : [b, a]
+      setPicked(new Set(ids.slice(s, t + 1)))
+      return
+    }
+    if (e.ctrlKey || e.metaKey) {
+      setPicked((p) => {
+        const n = new Set(p)
+        if (n.has(id)) n.delete(id)
+        else n.add(id)
+        return n
+      })
+      setAnchorId(id)
+      return
+    }
+    setPicked(new Set([id]))
+    setAnchorId(id)
+  }
+
+  const selectAll = () => setPicked(new Set(deck.cards.map((c) => c.id)))
+
+  const copyPicked = (cut = false) => {
+    const chosen = deck.cards.filter((c) => picked.has(c.id))
+    if (!chosen.length) return
+    localStorage.setItem(CLIP_KEY, JSON.stringify(chosen.map((c) => c.cloze)))
+    setHasClip(true)
+    if (cut) {
+      setCards((cards) => cards.filter((c) => !picked.has(c.id)))
+      setPicked(new Set())
+    }
+  }
+
+  const paste = () => {
+    let clozes: string[] = []
+    try {
+      clozes = JSON.parse(localStorage.getItem(CLIP_KEY) ?? '[]')
+    } catch {}
+    if (!clozes.length) return
+    const stamp = Date.now().toString(36)
+    const fresh = clozes.map((cloze, i) => ({ id: `p${stamp}${i}`, cloze }) as Card)
+    setCards((cards) => {
+      const last = cards.reduce((m, c, i) => (picked.has(c.id) ? i : m), -1)
+      const at = last < 0 ? cards.length : last + 1
+      return [...cards.slice(0, at), ...fresh, ...cards.slice(at)]
+    })
+    setPicked(new Set(fresh.map((c) => c.id)))
+  }
+
+  const openMenu = (id: string | null, e: React.MouseEvent) => {
+    e.preventDefault()
+    if (id && !picked.has(id)) {
+      setPicked(new Set([id]))
+      setAnchorId(id)
+    }
+    setMenu({ x: e.clientX, y: e.clientY })
+  }
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null
+      if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t?.isContentEditable) return
+      if (e.key === 'Escape') {
+        setMenu(null)
+        setPicked(new Set())
+        return
+      }
+      if (!(e.ctrlKey || e.metaKey)) return
+      const k = e.key.toLowerCase()
+      if (k === 'a') {
+        e.preventDefault()
+        selectAll()
+      } else if (k === 'c') copyPicked()
+      else if (k === 'x') copyPicked(true)
+      else if (k === 'v') {
+        e.preventDefault()
+        paste()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
+
+  useEffect(() => {
+    if (!menu) return
+    const close = () => setMenu(null)
+    window.addEventListener('pointerdown', close)
+    window.addEventListener('scroll', close, true)
+    return () => {
+      window.removeEventListener('pointerdown', close)
+      window.removeEventListener('scroll', close, true)
+    }
+  }, [menu])
+
+  const startDrag = (id: string, e: React.DragEvent) => {
+    const ids = picked.has(id) ? deck.cards.filter((c) => picked.has(c.id)).map((c) => c.id) : [id]
+    if (!picked.has(id)) setPicked(new Set([id]))
+    setDragIds(ids)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', ids.join(','))
+    document.body.dataset.dragging = 'true'
+  }
+
+  const overCard = (index: number, e: React.DragEvent) => {
+    if (!dragIds) return
+    e.preventDefault()
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    setDropAt(e.clientY < r.top + r.height / 2 ? index : index + 1)
+    if (e.clientY < 80) window.scrollBy(0, -14)
+    else if (e.clientY > window.innerHeight - 80) window.scrollBy(0, 14)
+  }
+
+  const endDrag = () => {
+    setDragIds(null)
+    setDropAt(null)
+    delete document.body.dataset.dragging
+  }
+
+  const dropCards = (e: React.DragEvent) => {
+    e.preventDefault()
+    if (dragIds && dropAt !== null) {
+      const moving = new Set(dragIds)
+      const target = dropAt
+      setCards((cards) => {
+        const moved = cards.filter((c) => moving.has(c.id))
+        const rest = cards.filter((c) => !moving.has(c.id))
+        const at = cards.slice(0, target).filter((c) => !moving.has(c.id)).length
+        return [...rest.slice(0, at), ...moved, ...rest.slice(at)]
+      })
+    }
+    endDrag()
+  }
+
+  const startBox = (e: React.PointerEvent) => {
+    if (e.button !== 0 || (e.target as HTMLElement).closest('[data-card-id]')) return
+    e.currentTarget.setPointerCapture(e.pointerId)
+    setBox({ x0: e.clientX, y0: e.clientY, x1: e.clientX, y1: e.clientY })
+    if (!(e.ctrlKey || e.metaKey)) setPicked(new Set())
+  }
+
+  const moveBox = (e: React.PointerEvent) => {
+    if (!box) return
+    const b = { ...box, x1: e.clientX, y1: e.clientY }
+    setBox(b)
+    const l = Math.min(b.x0, b.x1)
+    const r = Math.max(b.x0, b.x1)
+    const t = Math.min(b.y0, b.y1)
+    const btm = Math.max(b.y0, b.y1)
+    const hit = new Set<string>()
+    listRef.current?.querySelectorAll<HTMLElement>('[data-card-id]').forEach((el) => {
+      const q = el.getBoundingClientRect()
+      if (q.left < r && q.right > l && q.top < btm && q.bottom > t) hit.add(el.dataset.cardId!)
+    })
+    setPicked(hit)
+  }
+
+  const menuItems = [
+    { label: 'Copy', icon: Copy, keys: 'Ctrl+C', run: () => copyPicked(), off: !picked.size },
+    { label: 'Cut', icon: Scissors, keys: 'Ctrl+X', run: () => copyPicked(true), off: !picked.size },
+    { label: 'Paste', icon: ClipboardPaste, keys: 'Ctrl+V', run: paste, off: !hasClip },
+    { label: 'Select all', icon: ListChecks, keys: 'Ctrl+A', run: selectAll, off: !deck.cards.length },
+  ]
 
   const applyTermsToAll = () => {
     const list = parseTerms(terms)
@@ -256,21 +436,110 @@ export function DeckEditor({ existingDecks }: { existingDecks: DeckSummary[] }) 
             No cards yet. Paste text above and generate cards.
           </p>
         ) : (
-          <ol className="flex flex-col gap-3">
-            {visible.map((card, i) => {
-              const absolute = page * PAGE_SIZE + i
-              return (
-                <CardEditor
-                  key={card.id}
-                  card={card}
-                  number={absolute + 1}
-                  onChange={changeCard}
-                  onDelete={deleteCard}
-                  onMergeNext={absolute < deck.cards.length - 1 ? mergeNext : undefined}
-                />
-              )
-            })}
-          </ol>
+                    <>
+            {picked.size > 0 && (
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card px-3 py-2 text-xs">
+                <span className="font-semibold">{picked.size} محدد</span>
+                <Button variant="ghost" size="xs" onClick={() => copyPicked()}>
+                  <Copy aria-hidden /> Copy
+                </Button>
+                <Button variant="ghost" size="xs" onClick={() => copyPicked(true)}>
+                  <Scissors aria-hidden /> Cut
+                </Button>
+                <Button variant="ghost" size="xs" disabled={!hasClip} onClick={paste}>
+                  <ClipboardPaste aria-hidden /> Paste
+                </Button>
+                <Button variant="ghost" size="xs" onClick={() => setPicked(new Set())}>
+                  إلغاء التحديد
+                </Button>
+              </div>
+            )}
+            <div
+              className="-m-3 p-3"
+              onPointerDown={startBox}
+              onPointerMove={moveBox}
+              onPointerUp={() => setBox(null)}
+              onContextMenu={(e) => {
+                if ((e.target as HTMLElement).closest('[data-card-id]')) return
+                openMenu(null, e)
+              }}
+            >
+              <ol
+                ref={listRef}
+                className="flex flex-col gap-3"
+                onDragOver={(e) => {
+                  if (dragIds) e.preventDefault()
+                }}
+                onDrop={dropCards}
+              >
+                {visible.map((card, i) => {
+                  const absolute = page * PAGE_SIZE + i
+                  const lastOnPage = i === visible.length - 1
+                  return (
+                    <CardEditor
+                      key={card.id}
+                      card={card}
+                      number={absolute + 1}
+                      index={absolute}
+                      selected={picked.has(card.id)}
+                      dragging={!!dragIds?.includes(card.id)}
+                      dropLine={
+                        dropAt === absolute ? 'before' : lastOnPage && dropAt === absolute + 1 ? 'after' : null
+                      }
+                      onChange={changeCard}
+                      onDelete={deleteCard}
+                      onMergeNext={absolute < deck.cards.length - 1 ? mergeNext : undefined}
+                      onPick={pickCard}
+                      onMenu={openMenu}
+                      onDragStart={startDrag}
+                      onDragOverCard={overCard}
+                      onDragEnd={endDrag}
+                    />
+                  )
+                })}
+              </ol>
+            </div>
+
+            {menu && (
+              <div
+                role="menu"
+                className="fixed z-[90] min-w-48 overflow-hidden rounded-xl border bg-popover p-1 text-sm text-popover-foreground shadow-xl"
+                style={{ left: Math.min(menu.x, window.innerWidth - 200), top: Math.min(menu.y, window.innerHeight - 190) }}
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                {menuItems.map(({ label, icon: Icon, keys, run, off }) => (
+                  <button
+                    key={label}
+                    type="button"
+                    role="menuitem"
+                    disabled={off}
+                    onClick={() => {
+                      run()
+                      setMenu(null)
+                    }}
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-start transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-40"
+                  >
+                    <Icon className="size-4" aria-hidden />
+                    <span className="flex-1">{label}</span>
+                    <span className="text-xs text-muted-foreground">{keys}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {box && (
+              <div
+                aria-hidden
+                className="pointer-events-none fixed z-[80] rounded-md border border-primary bg-primary/10"
+                style={{
+                  left: Math.min(box.x0, box.x1),
+                  top: Math.min(box.y0, box.y1),
+                  width: Math.abs(box.x1 - box.x0),
+                  height: Math.abs(box.y1 - box.y0),
+                }}
+              />
+            )}
+          </>
         )}
 
         {pageCount > 1 && (
