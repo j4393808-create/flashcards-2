@@ -1,0 +1,52 @@
+import type { Metadata } from 'next'
+import { Logo } from '@/components/logo'
+import { AuthForm } from '@/components/auth/auth-form'
+import { FloatingCards } from '@/components/auth/floating-cards'
+import { SettingsMenu } from '@/components/settings-menu'
+
+export const metadata: Metadata = {
+  title: 'Sign in | Sammaa',
+}
+
+export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
+  const { next } = await searchParams
+  const nextPath = typeof next === 'string' ? next : '/'
+
+  return (
+    <div className="relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-10">
+      <FloatingCards />
+      <div className="absolute right-4 top-4 z-20">
+        <SettingsMenu />
+      </div>
+
+      <main className="relative z-10 grid w-full max-w-5xl items-center gap-10 md:grid-cols-2">
+        <section className="rise-in hidden md:block">
+          <div className="flex items-center gap-3">
+            <Logo size={56} className="logo-glow" />
+            <span className="text-gradient text-4xl font-bold">Sammaa</span>
+          </div>
+          <h1 className="mt-6 text-4xl font-bold leading-tight text-balance">
+            Memorize the textbook <span className="text-gradient">word for word</span>
+          </h1>
+          <p className="mt-4 max-w-md leading-relaxed text-muted-foreground text-pretty">
+            Fill-in-the-blank flashcards built from your medical books. Reveal one word at a time, test yourself, and
+            track what you&apos;ve mastered.
+          </p>
+          <ul className="mt-8 flex flex-wrap gap-2 text-xs font-medium">
+            {['Keyboard shortcuts', 'Progress tracking', 'Tap or type mode'].map((t, i) => (
+              <li
+                key={t}
+                className="rise-in rounded-full border bg-card/70 px-3 py-1.5 backdrop-blur"
+                style={{ animationDelay: `${200 + i * 120}ms` }}
+              >
+                {t}
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <AuthForm next={nextPath} />
+      </main>
+    </div>
+  )
+}

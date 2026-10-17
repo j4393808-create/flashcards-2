@@ -1,20 +1,22 @@
 import 'server-only'
-import { cookies } from 'next/headers'
 import { db } from './supabase/admin'
-
-export const ACCESS_COOKIE = 'fc_access'
+import { getSession } from './auth'
 
 export type Access = { allPaid: boolean; deckIds: Set<string> }
 
 export async function getAccess(): Promise<Access> {
-  const token = (await cookies()).get(ACCESS_COOKIE)?.value
+  const session = await getSession()
   const access: Access = { allPaid: false, deckIds: new Set() }
-  if (!token) return access
+  if (!session) return access
+  if (session.isAdmin) {
+    access.allPaid = true
+    return access
+  }
 
   const { data } = await db()
     .from('access_codes')
     .select('all_paid, deck_ids')
-    .eq('redeemed_token', token)
+    .eq('redeemed_by', session.id)
     .eq('revoked', false)
   for (const row of data ?? []) {
     if (row.all_paid) access.allPaid = true

@@ -1,6 +1,9 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { IBM_Plex_Sans_Arabic } from 'next/font/google'
+import { AmbientBackground } from '@/components/fx/ambient-background'
+import { CursorFx } from '@/components/fx/cursor-fx'
+import { SoundEngine } from '@/components/fx/sound-engine'
 import './globals.css'
 
 const plex = IBM_Plex_Sans_Arabic({
@@ -15,12 +18,8 @@ export const metadata: Metadata = {
     'Memorize medical textbooks word for word with fill-in-the-blank flashcards and test yourself.',
   generator: 'v0.app',
   icons: {
-    icon: [
-      { url: '/icon-light-32x32.png', media: '(prefers-color-scheme: light)' },
-      { url: '/icon-dark-32x32.png', media: '(prefers-color-scheme: dark)' },
-      { url: '/icon.svg', type: 'image/svg+xml' },
-    ],
-    apple: '/apple-icon.png',
+    icon: [{ url: '/logo.png', type: 'image/png' }],
+    apple: '/logo.png',
   },
 }
 
@@ -33,7 +32,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" dir="ltr" className={plex.variable}>
       <body className="font-sans antialiased">
+        <AmbientBackground />
         {children}
+        <CursorFx />
+        <SoundEngine />
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
