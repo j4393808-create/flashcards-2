@@ -41,7 +41,7 @@ export async function redeemCode(_prev: RedeemState, formData: FormData): Promis
   jar.set(ACCESS_COOKIE, token, {
     httpOnly: true,
     secure: true,
-    sameSite: 'lax',
+    sameSite: 'none',
     path: '/',
     maxAge: 60 * 60 * 24 * 365 * 5,
   })
