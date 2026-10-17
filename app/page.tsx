@@ -5,8 +5,10 @@ import { RedeemForm } from '@/components/redeem-form'
 import { getDeckSummaries } from '@/lib/decks'
 import { canOpen, getAccess } from '@/lib/access'
 import { cn } from '@/lib/utils'
+import { getSession } from '@/lib/auth'
 
 export default async function HomePage() {
+  const session = await getSession()
   const [decks, access] = await Promise.all([getDeckSummaries(), getAccess()])
   const hasPaid = decks.some((d) => !d.isFree)
 
@@ -84,11 +86,13 @@ export default async function HomePage() {
           </ul>
         )}
       </main>
-      <footer className="border-t py-6 text-center text-xs text-muted-foreground">
-        <Link href="/admin" className="hover:text-foreground">
-          Admin panel
-        </Link>
-      </footer>
+            {session?.isAdmin && (
+        <footer className="border-t py-6 text-center text-xs text-muted-foreground">
+          <Link href="/admin" className="hover:text-foreground">
+            Admin panel
+          </Link>
+        </footer>
+      )}
     </div>
   )
 }
