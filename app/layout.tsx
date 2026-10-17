@@ -13,7 +13,7 @@ const plex = IBM_Plex_Sans_Arabic({
 })
 
 export const metadata: Metadata = {
-  title: 'Sammaa | Medical Flashcards',
+  title: 'Kart w Ketab | Medical Flashcards',
   description:
     'Memorize medical textbooks word for word with fill-in-the-blank flashcards and test yourself.',
   generator: 'v0.app',
