@@ -5,7 +5,8 @@ import { FloatingCards } from '@/components/auth/floating-cards'
 import { SettingsMenu } from '@/components/settings-menu'
 
 export const metadata: Metadata = {
-  title: 'Sign in | Sammaa',
+  title: 'Sign in | Kart w Ketab'
+,
 }
 
 export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
@@ -13,9 +14,9 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
   const nextPath = typeof next === 'string' ? next : '/'
 
   return (
-    <div className="relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-10">
+    <div className="relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-6 sm:py-10">
       <FloatingCards />
-      <div className="absolute right-4 top-4 z-20">
+      <div className="absolute right-3 top-3 sm:right-4 sm:top-4 z-20">
         <SettingsMenu />
       </div>
 
@@ -23,7 +24,7 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
         <section className="rise-in hidden md:block">
           <div className="flex items-center gap-3">
             <Logo size={56} className="logo-glow" />
-            <span className="text-gradient text-4xl font-bold">Sammaa</span>
+            <span className="text-gradient text-4xl font-bold">Kart w Ketab</span>
           </div>
           <h1 className="mt-6 text-4xl font-bold leading-tight text-balance">
             Memorize the textbook <span className="text-gradient">word for word</span>
