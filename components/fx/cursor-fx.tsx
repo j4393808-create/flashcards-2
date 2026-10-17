@@ -24,6 +24,7 @@ export function CursorFx() {
     let magnet: Element | null = null
     let visible = false
     let raf = 0
+    const root = document.documentElement
 
     // Hit-test from the real pointer position (not e.target) so it stays correct
     // during pointer capture (box-select), after scroll, and when modals open/close.
@@ -57,6 +58,7 @@ export function CursorFx() {
         ry = ty = y
         ring.style.opacity = '1'
         dot.style.opacity = '1'
+        root.classList.add('cursor-fx-on') // hide native cursor only now
       }
       refresh()
     }
@@ -81,9 +83,18 @@ export function CursorFx() {
       visible = false
       ring.style.opacity = '0'
       dot.style.opacity = '0'
+      root.classList.remove('cursor-fx-on') // give the native cursor back
+    }
+    // mouseleave on `document` is unreliable; mouseout with no relatedTarget = left the window
+    const onOut = (e: MouseEvent) => {
+      if (!e.relatedTarget) onLeave()
     }
 
     const loop = () => {
+      if (!visible) {
+        raf = requestAnimationFrame(loop)
+        return
+      }
       if (magnet && magnet.isConnected) {
         const r = magnet.getBoundingClientRect()
         const cx = r.left + r.width / 2
@@ -113,28 +124,31 @@ export function CursorFx() {
     }
 
     raf = requestAnimationFrame(loop)
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('dragover', onMove)
-    window.addEventListener('pointerdown', onDown)
-    window.addEventListener('pointerup', onUp)
-    window.addEventListener('pointercancel', onUp)
-    window.addEventListener('drop', onUp)
-    window.addEventListener('dragend', onUp)
+    // capture phase (true) so components calling e.stopPropagation() (context menu,
+    // modals…) can't swallow the events and freeze the ring / ripple / down state
+    window.addEventListener('pointermove', onMove, true)
+    window.addEventListener('dragover', onMove, true)
+    window.addEventListener('pointerdown', onDown, true)
+    window.addEventListener('pointerup', onUp, true)
+    window.addEventListener('pointercancel', onUp, true)
+    window.addEventListener('drop', onUp, true)
+    window.addEventListener('dragend', onUp, true)
     window.addEventListener('scroll', refresh, true)
     window.addEventListener('blur', onLeave)
-    document.addEventListener('mouseleave', onLeave)
+    document.addEventListener('mouseout', onOut)
     return () => {
       cancelAnimationFrame(raf)
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('dragover', onMove)
-      window.removeEventListener('pointerdown', onDown)
-      window.removeEventListener('pointerup', onUp)
-      window.removeEventListener('pointercancel', onUp)
-      window.removeEventListener('drop', onUp)
-      window.removeEventListener('dragend', onUp)
+      root.classList.remove('cursor-fx-on')
+      window.removeEventListener('pointermove', onMove, true)
+      window.removeEventListener('dragover', onMove, true)
+      window.removeEventListener('pointerdown', onDown, true)
+      window.removeEventListener('pointerup', onUp, true)
+      window.removeEventListener('pointercancel', onUp, true)
+      window.removeEventListener('drop', onUp, true)
+      window.removeEventListener('dragend', onUp, true)
       window.removeEventListener('scroll', refresh, true)
-    window.removeEventListener('blur', onLeave)
-    document.removeEventListener('mouseleave', onLeave)
+      window.removeEventListener('blur', onLeave)
+      document.removeEventListener('mouseout', onOut)
     }
   }, [])
 
