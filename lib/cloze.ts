@@ -23,13 +23,33 @@ export function parseCloze(cloze: string): Segment[] {
   const segments: Segment[] = []
   let last = 0
   let index = 0
+
+  const pushText = (value: string) => {
+    if (!value) return
+    const previous = segments[segments.length - 1]
+    if (previous?.type === 'text') previous.value += value
+    else segments.push({ type: 'text', value })
+  }
+
   for (const match of cloze.matchAll(BLANK_RE)) {
     const at = match.index ?? 0
-    if (at > last) segments.push({ type: 'text', value: cloze.slice(last, at) })
-    segments.push({ type: 'blank', value: match[1], index: index++ })
+    if (at > last) pushText(cloze.slice(last, at))
+
+    // A stored cloze may contain several words in one blank (e.g. {{high cholesterol}}).
+    // Render each word as its own independently revealable blank while preserving
+    // every original space and punctuation mark as ordinary text.
+    for (const token of match[1].matchAll(TOKEN_RE)) {
+      const value = token[0]
+      if (/^[\p{L}\p{N}]/u.test(value)) {
+        segments.push({ type: 'blank', value, index: index++ })
+      } else {
+        pushText(value)
+      }
+    }
+
     last = at + match[0].length
   }
-  if (last < cloze.length) segments.push({ type: 'text', value: cloze.slice(last) })
+  if (last < cloze.length) pushText(cloze.slice(last))
   return segments
 }
 
