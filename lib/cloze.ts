@@ -231,7 +231,7 @@ Rules:
 - One word or phrase per line, with no numbering and no explanation.
 - Pick: disease names, organs and anatomical structures, hormones, enzymes and receptors, drugs and doses, normal values, causes and effects, scientific terms, and classifications.
 - Keep each phrase short (1 to 4 words) and meaningful on its own.
-- Do not include: prepositions, conjunctions, generic verbs like "is" or "causes", or full sentences.
+- Never list common or filler words on their own, such as articles (the, a, an), prepositions (of, in, on, at, to, for, with, by, from), conjunctions (and, or, but), pronouns, auxiliary or generic verbs (is, are, was, has, causes), or full sentences. A phrase must not start or end with one of these words (write "adrenal gland", not "the adrenal gland" or "gland of").
 - Skip numbers and their units; they are blanked automatically.
 - Aim for roughly one phrase per 8 to 12 words.
 
