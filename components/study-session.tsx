@@ -127,6 +127,8 @@ export function StudySession({ deck }: { deck: Deck }) {
     if (key === 'arrowup') return e.preventDefault()
     if (key === 'a') return revealAll()
     if (key === 'r') return resetCard()
+  })
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => handleKey(e)
     window.addEventListener('keydown', onKey)
@@ -138,7 +140,7 @@ export function StudySession({ deck }: { deck: Deck }) {
 
   return (
     <div className="flex flex-col gap-4">
-            <div className="grid gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
+      <div className="grid gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
         <div className="flex w-full items-center gap-1 rounded-lg border bg-card p-1 sm:w-auto" role="group" aria-label="طريقة التسميع">
           <ModeButton active={mode === 'tap'} onClick={() => switchMode('tap')}>
             <MousePointerClick className="size-4" aria-hidden /> اضغط واكشف
@@ -308,8 +310,7 @@ function ModeButton({ active, children, onClick }: { active: boolean; children: 
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        'flex flex-1 items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs transition-colors sm:flex-none sm:px-3 sm:text-sm'
-,
+        'flex flex-1 items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs transition-colors sm:flex-none sm:px-3 sm:text-sm',
         active ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
       )}
     >

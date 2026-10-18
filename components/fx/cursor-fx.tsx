@@ -49,7 +49,17 @@ export function CursorFx() {
     }
 
     const onMove = (e: PointerEvent | DragEvent) => {
-      if ('pointerType' in e && e.pointerType !== 'mouse') return
+      if ('pointerType' in e) {
+        if (e.pointerType !== 'mouse') return
+        // A real pointermove never fires during a native drag, so a move with no
+        // button pressed means any "dragging" / "pressed" state left behind (drag
+        // ended on a removed element, menu swallowed pointerup…) is stale. Clear it
+        // so the ring/dot can't get stuck in grab mode or hidden.
+        if (e.buttons === 0) {
+          ring.dataset.down = 'false'
+          if (document.body.dataset.dragging === 'true') delete document.body.dataset.dragging
+        }
+      }
       x = e.clientX
       y = e.clientY
       if (!visible) {
@@ -131,6 +141,7 @@ export function CursorFx() {
     window.addEventListener('pointerdown', onDown, true)
     window.addEventListener('pointerup', onUp, true)
     window.addEventListener('pointercancel', onUp, true)
+    window.addEventListener('contextmenu', onUp, true) // no pointerup follows a right-click menu
     window.addEventListener('drop', onUp, true)
     window.addEventListener('dragend', onUp, true)
     window.addEventListener('scroll', refresh, true)
@@ -144,6 +155,7 @@ export function CursorFx() {
       window.removeEventListener('pointerdown', onDown, true)
       window.removeEventListener('pointerup', onUp, true)
       window.removeEventListener('pointercancel', onUp, true)
+      window.removeEventListener('contextmenu', onUp, true)
       window.removeEventListener('drop', onUp, true)
       window.removeEventListener('dragend', onUp, true)
       window.removeEventListener('scroll', refresh, true)
