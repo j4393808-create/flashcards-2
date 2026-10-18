@@ -218,47 +218,59 @@ export function StudySession({ deck }: { deck: Deck }) {
             )}
           </div>
 
-          <p dir="auto" className="text-base leading-[2.3] sm:text-lg sm:leading-[2.4] md:text-xl">
-            {segments.map((seg, i) => {
-              if (seg.type === 'text') return <span key={i}>{seg.value}</span>
-              const isOpen = revealed.has(seg.index)
-              if (mode === 'type') {
-                return (
-                  <TypedBlank
-                    key={`${card.id}-${i}`}
-                    answer={seg.value}
-                    value={answers[seg.index] ?? ''}
-                    checked={isOpen}
-                    onChange={(v) => setAnswers((a) => ({ ...a, [seg.index]: v }))}
-                    onCheck={(correct) => {
-                      if (correct) sfx.correct()
-                      else sfx.wrong()
-                      setRevealed((r) => new Set(r).add(seg.index))
-                    }}
-                  />
-                )
+          {(() => {
+            let offset = 0
+            const positioned = segments.map((seg) => {
+              const item = { seg, start: offset, end: offset + seg.value.length }
+              offset = item.end
+              return item
+            })
+            const fullText = positioned.map((item) => item.seg.value).join('')
+            const lines: { value: string; start: number; end: number }[] = []
+            let lineOffset = 0
+            for (const value of fullText.split('\n')) {
+              lines.push({ value, start: lineOffset, end: lineOffset + value.length })
+              lineOffset += value.length + 1
+            }
+            const isTableRow = (value: string) => /^\s*\|.*\|\s*$/.test(value)
+            const isDivider = (value: string) => /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(value)
+            const renderRange = (start: number, end: number) => positioned.filter((item) => item.end > start && item.start < end).map(({ seg, start: segStart, end: segEnd }, i) => {
+              if (seg.type === 'text') {
+                const from = Math.max(start, segStart) - segStart
+                const to = Math.min(end, segEnd) - segStart
+                return <span key={'t-' + segStart + '-' + i}>{seg.value.slice(from, to)}</span>
               }
-              return (
-                <button
-                  key={i}
-                  type="button"
-                  data-no-click-sound
-                  onClick={() => revealOne(seg.index)}
-                  aria-label={isOpen ? seg.value : `فراغ رقم ${seg.index + 1}، اضغط للكشف`}
-                  className={cn(
-                    'mx-0.5 inline-block rounded-md px-1.5 align-baseline leading-normal transition-colors',
-                    isOpen
-                      ? 'word-pop bg-highlight font-semibold text-highlight-foreground'
-                      : 'border-b-2 border-dashed border-primary bg-accent text-transparent hover:bg-accent/70',
-                    !isOpen && seg.index === nextHidden && 'blank-next',
-                  )}
-                  style={isOpen ? undefined : { minWidth: `${Math.min(Math.max(seg.value.length, 4), 24)}ch` }}
-                >
-                  {isOpen ? seg.value : '\u00A0'}
-                </button>
-              )
-            })}
-          </p>
+              if (segStart < start || segEnd > end) return <span key={'b-' + seg.index}>{seg.value}</span>
+              const isOpen = revealed.has(seg.index)
+              if (mode === 'type') return <TypedBlank key={card.id + '-' + seg.index} answer={seg.value} value={answers[seg.index] ?? ''} checked={isOpen} onChange={(v) => setAnswers((a) => ({ ...a, [seg.index]: v }))} onCheck={(correct) => { if (correct) sfx.correct(); else sfx.wrong(); setRevealed((r) => new Set(r).add(seg.index)) }} />
+              return <button key={seg.index} type="button" data-no-click-sound onClick={() => revealOne(seg.index)} aria-label={isOpen ? seg.value : 'فراغ رقم ' + (seg.index + 1) + '، اضغط للكشف'} className={cn('mx-0.5 inline-block rounded-md px-1.5 align-baseline leading-normal transition-colors', isOpen ? 'word-pop bg-highlight font-semibold text-highlight-foreground' : 'border-b-2 border-dashed border-primary bg-accent text-transparent hover:bg-accent/70', !isOpen && seg.index === nextHidden && 'blank-next')} style={isOpen ? undefined : { minWidth: Math.min(Math.max(seg.value.length, 4), 24) + 'ch' }}>{isOpen ? seg.value : '\u00A0'}</button>
+            })
+            const blocks: { type: 'line' | 'table' | 'diagram'; lines: typeof lines }[] = []
+            for (let i = 0; i < lines.length;) {
+              if (i + 1 < lines.length && isTableRow(lines[i].value) && isDivider(lines[i + 1].value)) {
+                const rows = [lines[i], lines[i + 1]]
+                i += 2
+                while (i < lines.length && isTableRow(lines[i].value)) rows.push(lines[i++])
+                blocks.push({ type: 'table', lines: rows.filter((line, index) => index !== 1) })
+              } else if (/^[\s│├└┌┐┘┬┴─┼]+/.test(lines[i].value) && /[├└│─┌┐┘]/.test(lines[i].value)) {
+                const rows = [lines[i++]]
+                while (i < lines.length && /[├└│─┌┐┘]/.test(lines[i].value)) rows.push(lines[i++])
+                blocks.push({ type: 'diagram', lines: rows })
+              } else blocks.push({ type: 'line', lines: [lines[i++]] })
+            }
+            return <div dir="auto" className="space-y-3 text-base leading-[2.3] sm:text-lg sm:leading-[2.4] md:text-xl">
+              {blocks.map((block, bi) => block.type === 'table' ? <div key={bi} className="overflow-x-auto rounded-lg border"><table className="w-full border-collapse text-sm sm:text-base"><tbody>{block.lines.map((line, ri) => {
+                const cells = line.value.trim().replace(/^\|/, '').replace(/\|$/, '').split('|')
+                let cursor = line.value.indexOf(line.value.trim().replace(/^\|/, '').split('|')[0])
+                return <tr key={ri} className={ri === 0 ? 'bg-muted/70 font-semibold' : 'border-t'}>{cells.map((cell, ci) => {
+                  const at = line.value.indexOf(cell, cursor)
+                  const cellStart = line.start + (at >= 0 ? at : 0)
+                  cursor = (at >= 0 ? at : cursor) + cell.length + 1
+                  return <td key={ci} className="border-e px-3 py-2 align-top last:border-e-0">{renderRange(cellStart, cellStart + cell.length)}</td>
+                })}</tr>
+              })}</tbody></table></div> : block.type === 'diagram' ? <pre key={bi} className="overflow-x-auto rounded-lg border bg-muted/30 p-3 text-sm leading-relaxed">{block.lines.map((line, i) => <span key={i}>{renderRange(line.start, line.end)}{i < block.lines.length - 1 ? '\n' : ''}</span>)}</pre> : <div key={bi} className="whitespace-pre-wrap">{renderRange(block.lines[0].start, block.lines[0].end)}</div>)}
+            </div>
+          })()}
 
           <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t pt-5">
             {allRevealed ? (
