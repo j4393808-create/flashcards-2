@@ -93,33 +93,62 @@ export const CardEditor = memo(function CardEditor({
           </Button>
         </div>
       </div>
-      <p dir="auto" className="whitespace-pre-wrap leading-loose">
-        {tokens.map((t, i) => {
+      {(() => {
+        const lines: { value: string; start: number; end: number }[] = []
+        let offset = 0
+        for (const value of text.split('\n')) {
+          lines.push({ value, start: offset, end: offset + value.length })
+          offset += value.length + 1
+        }
+        const isTableRow = (value: string) => /^\s*\|.*\|\s*$/.test(value)
+        const isDivider = (value: string) => /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(value)
+        const renderRange = (start: number, end: number) => tokens.map((t, i) => {
+          if (t.start < start || t.end > end) return null
           if (t.space) {
             const joined = chosen.has(i - 1) && chosen.has(i + 1)
-            return (
-              <span key={i} className={cn(joined && 'bg-highlight')}>
-                {t.text}
-              </span>
-            )
+            return <span key={i} className={cn(joined && 'bg-highlight')}>{t.text}</span>
           }
           const on = chosen.has(i)
-          return (
-            <button
-              key={i}
-              type="button"
-              aria-pressed={on}
-              onClick={() => toggle(i)}
-              className={cn(
-                'rounded-sm transition-colors',
-                on ? 'bg-highlight font-semibold text-highlight-foreground' : 'hover:bg-accent',
-              )}
-            >
-              {t.text}
-            </button>
-          )
-        })}
-      </p>
+          return <button key={i} type="button" aria-pressed={on} onClick={() => toggle(i)} className={cn('rounded-sm transition-colors', on ? 'bg-highlight font-semibold text-highlight-foreground' : 'hover:bg-accent')}>{t.text}</button>
+        })
+        const blocks: { type: 'line' | 'table' | 'diagram'; lines: typeof lines }[] = []
+        for (let i = 0; i < lines.length;) {
+          if (i + 1 < lines.length && isTableRow(lines[i].value) && isDivider(lines[i + 1].value)) {
+            const rows = [lines[i], lines[i + 1]]
+            i += 2
+            while (i < lines.length && isTableRow(lines[i].value)) rows.push(lines[i++])
+            blocks.push({ type: 'table', lines: rows.filter((line, index) => index !== 1) })
+          } else if (/^[\s│├└┌┐┘┌┬┴─┼]+/.test(lines[i].value) && /[├└│─└┌┐┘]/.test(lines[i].value)) {
+            const rows = [lines[i++]]
+            while (i < lines.length && /[├└│─└┌┐┘]/.test(lines[i].value)) rows.push(lines[i++])
+            blocks.push({ type: 'diagram', lines: rows })
+          } else {
+            blocks.push({ type: 'line', lines: [lines[i++]] })
+          }
+        }
+        return <div dir="auto" className="space-y-2 leading-loose">
+          {blocks.map((block, bi) => block.type === 'table' ? (
+            <div key={bi} className="overflow-x-auto rounded-lg border">
+              <table className="w-full border-collapse text-sm">
+                <tbody>{block.lines.map((line, ri) => {
+                  const cells = line.value.trim().replace(/^\|/, '').replace(/\|$/, '').split('|')
+                  let cursor = line.start + line.value.indexOf(line.value.trim().replace(/^\|/, '').split('|')[0])
+                  return <tr key={ri} className={ri === 0 ? 'bg-muted/70 font-semibold' : 'border-t'}>
+                    {cells.map((cell, ci) => {
+                      const at = line.value.indexOf(cell, Math.max(0, cursor - line.start))
+                      const start = line.start + (at >= 0 ? at : 0)
+                      cursor = start + cell.length + 1
+                      return <td key={ci} className="border-e px-3 py-2 align-top last:border-e-0">{renderRange(start, start + cell.length)}</td>
+                    })}
+                  </tr>
+                })}</tbody>
+              </table>
+            </div>
+          ) : block.type === 'diagram' ? (
+            <pre key={bi} className="overflow-x-auto rounded-lg border bg-muted/30 p-3 text-sm leading-relaxed">{block.lines.map((line, i) => <span key={i}>{renderRange(line.start, line.end)}{i < block.lines.length - 1 ? '\n' : ''}</span>)}</pre>
+          ) : <div key={bi} className="whitespace-pre-wrap">{renderRange(block.lines[0].start, block.lines[0].end)}</div>)}
+        </div>
+      })()}
     </li>
   )
 })
