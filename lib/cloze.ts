@@ -190,7 +190,12 @@ export function prepareText(raw: string, joinLines: boolean) {
   if (joinLines) {
     text = text
       .replace(/(\p{L})-\n(\p{Ll})/gu, '$1$2')
-      .replace(/([^\n])\n(?!\s*\n)/g, '$1 ')
+      // join broken lines, but keep Markdown table rows (lines starting with "|") on their own lines
+      .replace(/([^\n])\n(?!\s*\n)/g, (m, c: string, offset: number, str: string) => {
+        const lineStart = str.lastIndexOf('\n', offset) + 1
+        const nextIsRow = str[offset + 2] === '|'
+        return str[lineStart] === '|' || nextIsRow ? m : c + ' '
+      })
   }
   return text
 }

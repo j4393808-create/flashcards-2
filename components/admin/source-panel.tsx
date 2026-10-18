@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Check, Copy, Plus, Wand2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { WordEditor } from './word-editor'
 import { autoCloze, buildPrompt, parseTerms, prepareText, splitIntoCards, type Card } from '@/lib/cloze'
 
 type Props = {
@@ -13,66 +14,9 @@ type Props = {
 
 const newId = () => Math.random().toString(36).slice(2, 10)
 
-// Convert Word/Docs rich clipboard tables into the Markdown table format used by the card renderer.
-function clipboardToText(event: React.ClipboardEvent<HTMLTextAreaElement>) {
-  const clipboard = event.clipboardData
-  const html = clipboard.getData('text/html')
-  if (html) {
-    const doc = new DOMParser().parseFromString(html, 'text/html')
-    const tables = [...doc.querySelectorAll('table')]
-    if (tables.length) {
-      const tableText = (table: HTMLTableElement) => {
-        const rows = [...table.querySelectorAll('tr')].map((row) =>
-          [...row.querySelectorAll('th,td')].map((cell) =>
-            (cell.textContent ?? '').replace(/\\s+/g, ' ').trim().replace(/\\|/g, '\\\\|')
-          )
-        ).filter((row) => row.some(Boolean))
-        if (!rows.length) return ''
-        const width = Math.max(...rows.map((row) => row.length))
-        const normalized = rows.map((row) => Array.from({ length: width }, (_, i) => row[i] ?? ''))
-        const divider = Array.from({ length: width }, () => '---')
-        return [normalized[0], divider, ...normalized.slice(1)].map((row) => '| ' + row.join(' | ') + ' |').join('\\n')
-      }
-      let result = (doc.body.textContent ?? '').trim()
-      for (const table of tables) result = result.replace((table.textContent ?? '').trim(), tableText(table))
-      result = [...tables].map(tableText).filter(Boolean).join('\\n\\n')
-      event.preventDefault()
-      const el = event.currentTarget
-      const start = el.selectionStart
-      const end = el.selectionEnd
-      const next = text.slice(0, start) + result + text.slice(end)
-      setText(next)
-      requestAnimationFrame(() => {
-        el.focus()
-        el.setSelectionRange(start + result.length, start + result.length)
-      })
-      return
-    }
-  }
-
-  // Word often puts copied table cells in the plain-text clipboard as tab-separated rows.
-  const plain = clipboard.getData('text/plain')
-  if (plain.includes('\\t') && plain.includes('\\n')) {
-    const rows = plain.trim().split(/\\r?\\n/).map((row) => row.split('\\t').map((cell) => cell.trim()))
-    const width = Math.max(...rows.map((row) => row.length))
-    const normalized = rows.map((row) => Array.from({ length: width }, (_, i) => row[i] ?? ''))
-    const formatted = [normalized[0], Array.from({ length: width }, () => '---'), ...normalized.slice(1)]
-      .map((row) => '| ' + row.join(' | ') + ' |').join('\\n')
-    event.preventDefault()
-    const el = event.currentTarget
-    const start = el.selectionStart
-    const end = el.selectionEnd
-    const next = text.slice(0, start) + formatted + text.slice(end)
-    setText(next)
-    requestAnimationFrame(() => {
-      el.focus()
-      el.setSelectionRange(start + formatted.length, start + formatted.length)
-    })
-  }
-}
-
 export function SourcePanel({ terms, onTermsChange, onGenerate }: Props) {
   const [text, setText] = useState('')
+  const [resetKey, setResetKey] = useState(0)
   const [aiReply, setAiReply] = useState('')
   const [joinLines, setJoinLines] = useState(true)
   const [numbers, setNumbers] = useState(true)
@@ -84,6 +28,7 @@ export function SourcePanel({ terms, onTermsChange, onGenerate }: Props) {
     const termList = parseTerms(terms)
     onGenerate(chunks.map((chunk) => ({ id: newId(), cloze: autoCloze(chunk, { numbers, abbreviations, terms: termList }) })))
     setText('')
+    setResetKey((k) => k + 1)
   }
 
   const copyPrompt = async () => {
@@ -104,15 +49,10 @@ export function SourcePanel({ terms, onTermsChange, onGenerate }: Props) {
         <label htmlFor="source" className="text-sm font-semibold">
           1. الصق صفحة أو أكتر من الكتاب
         </label>
-        <textarea
-          id="source"
-          dir="auto"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onPaste={clipboardToText}
-          rows={9}
+        <WordEditor
+          onTextChange={setText}
+          resetKey={resetKey}
           placeholder="الصق النص أو جدول Word هنا؛ الجداول هتتحول لجدول منسق في الكارت…"
-          className="w-full resize-y rounded-lg border bg-background p-3 text-sm leading-relaxed outline-none focus:ring-2 focus:ring-ring"
         />
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
           <Toggle checked={joinLines} onChange={setJoinLines} label="صلّح سطور الـ PDF المكسورة" />
