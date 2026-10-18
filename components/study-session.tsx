@@ -5,7 +5,7 @@ import { Check, ChevronLeft, ChevronRight, Eye, Keyboard, MousePointerClick, Rot
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { sfx } from '@/lib/sound'
-import { normalizeAnswer, parseBlocks, parseCloze, type Block, type Deck, type Inline, type ListItem } from '@/lib/cloze'
+import { normalizeAnswer, parseCloze, type Deck } from '@/lib/cloze'
 
 type Mode = 'tap' | 'type'
 
@@ -37,7 +37,6 @@ export function StudySession({ deck }: { deck: Deck }) {
   const cardsById = useMemo(() => new Map(deck.cards.map((c) => [c.id, c])), [deck.cards])
   const card = cardsById.get(queue[position])
   const segments = useMemo(() => (card ? parseCloze(card.cloze) : []), [card])
-  const blocks = useMemo(() => parseBlocks(segments), [segments])
   const blankCount = segments.filter((s) => s.type === 'blank').length
   const allRevealed = revealed.size >= blankCount
 
@@ -52,47 +51,6 @@ export function StudySession({ deck }: { deck: Deck }) {
     if (revealed.has(index)) return
     sfx.reveal(index)
     setRevealed((r) => new Set(r).add(index))
-  }
-
-  const renderInline = (node: Inline, key: string) => {
-    if (!card) return null
-    if (node.type === 'text') return <span key={key}>{node.value}</span>
-    const isOpen = revealed.has(node.index)
-    if (mode === 'type') {
-      return (
-        <TypedBlank
-          key={`${card.id}-${key}`}
-          answer={node.value}
-          value={answers[node.index] ?? ''}
-          checked={isOpen}
-          onChange={(v) => setAnswers((a) => ({ ...a, [node.index]: v }))}
-          onCheck={(correct) => {
-            if (correct) sfx.correct()
-            else sfx.wrong()
-            setRevealed((r) => new Set(r).add(node.index))
-          }}
-        />
-      )
-    }
-    return (
-      <button
-        key={key}
-        type="button"
-        data-no-click-sound
-        onClick={() => revealOne(node.index)}
-        aria-label={isOpen ? node.value : `فراغ رقم ${node.index + 1}، اضغط للكشف`}
-        className={cn(
-          'mx-0.5 inline-block rounded-md px-1.5 align-baseline leading-normal transition-colors',
-          isOpen
-            ? 'word-pop bg-highlight font-semibold text-highlight-foreground'
-            : 'border-b-2 border-dashed border-primary bg-accent text-transparent hover:bg-accent/70',
-          !isOpen && node.index === nextHidden && 'blank-next',
-        )}
-        style={isOpen ? undefined : { minWidth: `${Math.min(Math.max(node.value.length, 4), 24)}ch` }}
-      >
-        {isOpen ? node.value : '\u00A0'}
-      </button>
-    )
   }
 
   const revealNext = () => {
@@ -260,11 +218,47 @@ export function StudySession({ deck }: { deck: Deck }) {
             )}
           </div>
 
-          <div className="space-y-5">
-            {blocks.map((block, bi) => (
-              <CardBlock key={bi} block={block} renderInline={renderInline} />
-            ))}
-          </div>
+          <p dir="auto" className="text-base leading-[2.3] sm:text-lg sm:leading-[2.4] md:text-xl">
+            {segments.map((seg, i) => {
+              if (seg.type === 'text') return <span key={i}>{seg.value}</span>
+              const isOpen = revealed.has(seg.index)
+              if (mode === 'type') {
+                return (
+                  <TypedBlank
+                    key={`${card.id}-${i}`}
+                    answer={seg.value}
+                    value={answers[seg.index] ?? ''}
+                    checked={isOpen}
+                    onChange={(v) => setAnswers((a) => ({ ...a, [seg.index]: v }))}
+                    onCheck={(correct) => {
+                      if (correct) sfx.correct()
+                      else sfx.wrong()
+                      setRevealed((r) => new Set(r).add(seg.index))
+                    }}
+                  />
+                )
+              }
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  data-no-click-sound
+                  onClick={() => revealOne(seg.index)}
+                  aria-label={isOpen ? seg.value : `فراغ رقم ${seg.index + 1}، اضغط للكشف`}
+                  className={cn(
+                    'mx-0.5 inline-block rounded-md px-1.5 align-baseline leading-normal transition-colors',
+                    isOpen
+                      ? 'word-pop bg-highlight font-semibold text-highlight-foreground'
+                      : 'border-b-2 border-dashed border-primary bg-accent text-transparent hover:bg-accent/70',
+                    !isOpen && seg.index === nextHidden && 'blank-next',
+                  )}
+                  style={isOpen ? undefined : { minWidth: `${Math.min(Math.max(seg.value.length, 4), 24)}ch` }}
+                >
+                  {isOpen ? seg.value : '\u00A0'}
+                </button>
+              )
+            })}
+          </p>
 
           <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t pt-5">
             {allRevealed ? (
@@ -305,112 +299,6 @@ export function StudySession({ deck }: { deck: Deck }) {
           </div>
         </div>
       )}
-    </div>
-  )
-}
-
-type RenderInline = (node: Inline, key: string) => React.ReactNode
-
-const inlineNodes = (nodes: Inline[], render: RenderInline) => nodes.map((n, i) => render(n, `n${i}`))
-
-/** Draws one layout block of a card: a paragraph, a table, or a classification tree. */
-function CardBlock({ block, renderInline }: { block: Block; renderInline: RenderInline }) {
-  if (block.kind === 'paragraph') {
-    return (
-      <p dir="auto" className="text-base leading-[2.3] sm:text-lg sm:leading-[2.4] md:text-xl">
-        {inlineNodes(block.nodes, renderInline)}
-      </p>
-    )
-  }
-
-  if (block.kind === 'table') {
-    const columns = Math.max(block.header?.length ?? 0, ...block.rows.map((r) => r.length))
-    const pad = (row: Inline[][]) => Array.from({ length: columns }, (_, i) => row[i] ?? [])
-    const labelColumn = !!block.header && block.header[0]?.length === 0
-    const cell = 'border-b border-s px-3 py-2.5 align-top text-start first:border-s-0'
-    return (
-      <div className="overflow-x-auto rounded-xl border">
-        <table dir="auto" className="w-full border-collapse text-sm leading-[2.2] sm:text-base">
-          {block.header && (
-            <thead className="bg-primary/10">
-              <tr>
-                {pad(block.header).map((c, i) => (
-                  <th key={i} dir="auto" scope="col" className={cn(cell, 'font-bold')}>
-                    {inlineNodes(c, renderInline)}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-          )}
-          <tbody>
-            {block.rows.map((row, ri) => (
-              <tr key={ri} className="last:*:border-b-0">
-                {pad(row).map((c, ci) =>
-                  ci === 0 && labelColumn ? (
-                    <th key={ci} dir="auto" scope="row" className={cn(cell, 'w-px whitespace-nowrap bg-primary/5 font-bold')}>
-                      {inlineNodes(c, renderInline)}
-                    </th>
-                  ) : (
-                    <td key={ci} dir="auto" className={cell}>
-                      {inlineNodes(c, renderInline)}
-                    </td>
-                  ),
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    )
-  }
-
-  return <ListTree items={block.items} renderInline={renderInline} />
-}
-
-type TreeNode = { item: ListItem; children: TreeNode[] }
-
-function buildTree(items: ListItem[]) {
-  const roots: TreeNode[] = []
-  const stack: TreeNode[] = []
-  for (const item of items) {
-    const node: TreeNode = { item, children: [] }
-    const level = Math.min(item.level, stack.length)
-    stack.length = level
-    if (level === 0) roots.push(node)
-    else stack[level - 1].children.push(node)
-    stack.push(node)
-  }
-  return roots
-}
-
-function TreeList({ nodes, depth, renderInline }: { nodes: TreeNode[]; depth: number; renderInline: RenderInline }) {
-  return (
-    <ul
-      dir="auto"
-      className={cn(depth > 0 && 'ms-2 border-s-2 border-primary/30 ps-4', depth === 0 ? 'space-y-1' : 'mt-1 space-y-1')}
-    >
-      {nodes.map((n, i) => (
-        <li
-          key={i}
-          className={cn(
-            'relative',
-            depth === 0
-              ? 'ps-5 before:absolute before:start-0 before:top-[1.05em] before:size-2 before:rounded-full before:bg-primary'
-              : 'before:absolute before:-start-4 before:top-[1.2em] before:h-0.5 before:w-3 before:bg-primary/30',
-          )}
-        >
-          <span className={cn('leading-[2.2]', depth === 0 && 'font-semibold')}>{inlineNodes(n.item.nodes, renderInline)}</span>
-          {n.children.length > 0 && <TreeList nodes={n.children} depth={depth + 1} renderInline={renderInline} />}
-        </li>
-      ))}
-    </ul>
-  )
-}
-
-function ListTree({ items, renderInline }: { items: ListItem[]; renderInline: RenderInline }) {
-  return (
-    <div className="text-base sm:text-lg">
-      <TreeList nodes={buildTree(items)} depth={0} renderInline={renderInline} />
     </div>
   )
 }

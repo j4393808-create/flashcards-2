@@ -80,7 +80,7 @@ export function toCloze(text: string, tokens: Token[], selected: Set<number>) {
       if (!next) break
       if (!next.space && selected.has(last + 1)) {
         last++
-      } else if (next.space && !next.text.includes('\n') && selected.has(last + 2) && !tokens[last + 2]?.space) {
+      } else if (next.space && selected.has(last + 2) && !tokens[last + 2]?.space) {
         last += 2
       } else break
     }
@@ -170,23 +170,11 @@ const ABBREVIATIONS = ['e.g', 'i.e', 'dr', 'vs', 'etc', 'fig', 'approx', 'no', '
 export function prepareText(raw: string, joinLines: boolean) {
   let text = raw.replace(/\r\n?/g, '\n')
   if (joinLines) {
-    // Tables and lists keep their line breaks; only broken PDF lines get joined.
-    const hyphens = text
-    text = hyphens.replace(/(\p{L})-\n(\p{Ll})/gu, (m, a, b, offset: number) =>
-      isStructuredLine(lineAt(hyphens, offset)) || isStructuredLine(lineAt(hyphens, offset + 3)) ? m : `${a}${b}`,
-    )
-    const lines = text
-    text = lines.replace(/([^\n])\n(?!\s*\n)/g, (m, a, offset: number) =>
-      isStructuredLine(lineAt(lines, offset)) || isStructuredLine(lineAt(lines, offset + 2)) ? m : `${a} `,
-    )
+    text = text
+      .replace(/(\p{L})-\n(\p{Ll})/gu, '$1$2')
+      .replace(/([^\n])\n(?!\s*\n)/g, '$1 ')
   }
   return text
-}
-
-function lineAt(text: string, offset: number) {
-  const start = text.lastIndexOf('\n', offset) + 1
-  const end = text.indexOf('\n', offset)
-  return text.slice(start, end === -1 ? undefined : end)
 }
 
 export function splitIntoCards(text: string, sentencesPerCard: number) {
@@ -194,10 +182,6 @@ export function splitIntoCards(text: string, sentencesPerCard: number) {
   for (const paragraph of text.split(/\n\s*\n/)) {
     const p = paragraph.trim()
     if (!p) continue
-    if (p.split('\n').some(isStructuredLine)) {
-      chunks.push(p)
-      continue
-    }
     const ends: number[] = []
     for (const m of p.matchAll(/[.!?؟](?=\s|$)/g)) {
       const at = m.index ?? 0
@@ -257,112 +241,4 @@ Text:
 """
 ${text.trim()}
 """`
-}
-
-/* ---------- Structured layout: tables and nested lists inside a card ---------- */
-
-export type Inline = { type: 'text'; value: string } | { type: 'blank'; value: string; index: number }
-
-export type ListItem = { level: number; nodes: Inline[] }
-
-export type Block =
-  | { kind: 'paragraph'; nodes: Inline[] }
-  | { kind: 'table'; header: Inline[][] | null; rows: Inline[][][] }
-  | { kind: 'list'; items: ListItem[] }
-
-const LIST_RE = /^([ \t]*)(•|◦|▪|o|\*|-{1,3})[ \t]+/
-const SEPARATOR_RE = /^\s*:?-{2,}:?\s*$/
-
-/** A line that belongs to a table (starts with |) or a list (starts with a marker). */
-export function isStructuredLine(line: string) {
-  return /^\s*\|/.test(line) || LIST_RE.test(line)
-}
-
-function markerLevel(marker: string, indent: string) {
-  const depth = Math.floor(indent.replace(/\t/g, '  ').length / 2)
-  if (marker === 'o' || marker === '◦' || marker === '--') return Math.max(1, depth)
-  if (marker === '▪' || marker === '---') return Math.max(2, depth)
-  return depth
-}
-
-function splitCells(line: Inline[]) {
-  const cells: Inline[][] = [[]]
-  for (const node of line) {
-    if (node.type === 'blank') {
-      cells[cells.length - 1].push(node)
-      continue
-    }
-    node.value.split('|').forEach((part, i) => {
-      if (i > 0) cells.push([])
-      if (part) cells[cells.length - 1].push({ type: 'text', value: part })
-    })
-  }
-  if (!cells[0].length) cells.shift()
-  if (cells.length && !cells[cells.length - 1].length) cells.pop()
-  return cells.map((cell) => {
-    const first = cell[0]
-    const last = cell[cell.length - 1]
-    if (first?.type === 'text') cell[0] = { type: 'text', value: first.value.replace(/^\s+/, '') }
-    if (last?.type === 'text') cell[cell.length - 1] = { type: 'text', value: last.value.replace(/\s+$/, '') }
-    return cell.filter((n) => n.type === 'blank' || n.value)
-  })
-}
-
-const isSeparatorRow = (cells: Inline[][]) =>
-  cells.length > 0 && cells.every((c) => c.length === 1 && c[0].type === 'text' && SEPARATOR_RE.test(c[0].value))
-
-/** Turns parsed cloze segments into layout blocks. Blank numbering is untouched. */
-export function parseBlocks(segments: Segment[]): Block[] {
-  const lines: Inline[][] = [[]]
-  for (const seg of segments) {
-    if (seg.type === 'blank') {
-      lines[lines.length - 1].push(seg)
-      continue
-    }
-    seg.value.split('\n').forEach((part, i) => {
-      if (i > 0) lines.push([])
-      if (part) lines[lines.length - 1].push({ type: 'text', value: part })
-    })
-  }
-
-  const blocks: Block[] = []
-  for (const line of lines) {
-    const first = line[0]
-    const firstText = first?.type === 'text' ? first.value : ''
-    const isEmpty = line.every((n) => n.type === 'text' && !n.value.trim())
-
-    if (/^\s*\|/.test(firstText)) {
-      const cells = splitCells(line)
-      let table = blocks[blocks.length - 1]
-      if (table?.kind !== 'table') {
-        table = { kind: 'table', header: null, rows: [] }
-        blocks.push(table)
-      }
-      if (isSeparatorRow(cells)) {
-        if (table.rows.length === 1 && !table.header) table.header = table.rows.shift() ?? null
-      } else {
-        table.rows.push(cells)
-      }
-      continue
-    }
-
-    const match = LIST_RE.exec(firstText)
-    if (match) {
-      const nodes = [...line]
-      nodes[0] = { type: 'text', value: firstText.slice(match[0].length) }
-      let list = blocks[blocks.length - 1]
-      if (list?.kind !== 'list') {
-        list = { kind: 'list', items: [] }
-        blocks.push(list)
-      }
-      list.items.push({ level: markerLevel(match[2], match[1]), nodes: nodes.filter((n) => n.type === 'blank' || n.value) })
-      continue
-    }
-
-    if (isEmpty) continue
-    const last = blocks[blocks.length - 1]
-    if (last?.kind === 'paragraph') last.nodes.push({ type: 'text', value: ' ' }, ...line)
-    else blocks.push({ kind: 'paragraph', nodes: line })
-  }
-  return blocks
 }
