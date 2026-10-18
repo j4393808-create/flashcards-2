@@ -16,14 +16,13 @@ const newId = () => Math.random().toString(36).slice(2, 10)
 export function SourcePanel({ terms, onTermsChange, onGenerate }: Props) {
   const [text, setText] = useState('')
   const [aiReply, setAiReply] = useState('')
-  const [sentences, setSentences] = useState(2)
   const [joinLines, setJoinLines] = useState(true)
   const [numbers, setNumbers] = useState(true)
   const [abbreviations, setAbbreviations] = useState(true)
   const [copied, setCopied] = useState(false)
 
   const generate = () => {
-    const chunks = splitIntoCards(prepareText(text, joinLines), sentences)
+    const chunks = splitIntoCards(text, joinLines)
     const termList = parseTerms(terms)
     onGenerate(chunks.map((chunk) => ({ id: newId(), cloze: autoCloze(chunk, { numbers, abbreviations, terms: termList }) })))
     setText('')
@@ -57,20 +56,6 @@ export function SourcePanel({ terms, onTermsChange, onGenerate }: Props) {
           className="w-full resize-y rounded-lg border bg-background p-3 text-sm leading-relaxed outline-none focus:ring-2 focus:ring-ring"
         />
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-          <label className="flex items-center gap-2">
-            جمل في الكارت
-            <select
-              value={sentences}
-              onChange={(e) => setSentences(Number(e.target.value))}
-              className="rounded-md border bg-background px-2 py-1"
-            >
-              {[1, 2, 3, 4, 5].map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </label>
           <Toggle checked={joinLines} onChange={setJoinLines} label="صلّح سطور الـ PDF المكسورة" />
           <Toggle checked={numbers} onChange={setNumbers} label="فرّغ الأرقام ووحداتها" />
           <Toggle checked={abbreviations} onChange={setAbbreviations} label="فرّغ الاختصارات (ECG)" />
@@ -104,7 +89,7 @@ export function SourcePanel({ terms, onTermsChange, onGenerate }: Props) {
           className="w-full resize-y rounded-lg border bg-background p-2 text-sm outline-none focus:ring-2 focus:ring-ring"
         />
         <label htmlFor="ai-reply" className="text-xs font-medium text-muted-foreground">
-          الصق رد الذكاء الاصطناعي هنا
+          الصق قائمة الكلمات اللي رجّعها الذكاء الاصطناعي هنا
         </label>
         <textarea
           id="ai-reply"

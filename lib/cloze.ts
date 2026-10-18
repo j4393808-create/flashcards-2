@@ -165,8 +165,6 @@ export function applyTerms(cloze: string, terms: string[]) {
   return toCloze(text, tokens, next)
 }
 
-const ABBREVIATIONS = ['e.g', 'i.e', 'dr', 'vs', 'etc', 'fig', 'approx', 'no', 'mr', 'st']
-
 export function prepareText(raw: string, joinLines: boolean) {
   let text = raw.replace(/\r\n?/g, '\n')
   if (joinLines) {
@@ -177,28 +175,25 @@ export function prepareText(raw: string, joinLines: boolean) {
   return text
 }
 
-export function splitIntoCards(text: string, sentencesPerCard: number) {
-  const chunks: string[] = []
-  for (const paragraph of text.split(/\n\s*\n/)) {
-    const p = paragraph.trim()
-    if (!p) continue
-    const ends: number[] = []
-    for (const m of p.matchAll(/[.!?؟](?=\s|$)/g)) {
-      const at = m.index ?? 0
-      const before = p.slice(0, at).split(/\s/).pop()?.toLowerCase() ?? ''
-      if (ABBREVIATIONS.includes(before)) continue
-      ends.push(at + 1)
-    }
-    if (ends[ends.length - 1] !== p.length) ends.push(p.length)
-    let start = 0
-    for (let i = 0; i < ends.length; i += sentencesPerCard) {
-      const end = ends[Math.min(i + sentencesPerCard, ends.length) - 1]
-      const chunk = p.slice(start, end).trim()
-      if (chunk) chunks.push(chunk)
-      start = end
-    }
+export const CARD_SEPARATOR = '-'.repeat(73)
+
+const SEPARATOR_LINE = /^[ \t]*-{5,}[ \t]*$/m
+
+export function splitIntoCards(raw: string, joinLines: boolean) {
+  const text = raw.replace(/\r\n?/g, '\n')
+  // Text rewritten by the AI: cards are separated by a line of dashes, and
+  // line breaks inside a card (e.g. a diagram) are kept as they are.
+  if (SEPARATOR_LINE.test(text)) {
+    return text
+      .split(/^[ \t]*-{5,}[ \t]*$/m)
+      .map((chunk) => chunk.trim())
+      .filter(Boolean)
   }
-  return chunks
+  // Plain pasted text with no separator: one card per paragraph.
+  return prepareText(text, joinLines)
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
 }
 
 export function parseTerms(raw: string) {
@@ -226,7 +221,10 @@ export function normalizeAnswer(value: string) {
 export function buildPrompt(text: string) {
   return `You are helping me build fill-in-the-blank (cloze) flashcards from a medical textbook.
 
-Task: list the important words or phrases from the text below that a student should memorize.
+You have two tasks. Do both on the text at the end of this message.
+
+TASK 1 - Important words
+List the important words or phrases from the text that a student should memorize.
 
 Rules:
 - Copy every word or phrase exactly as it appears in the text, character for character, in the same language.
@@ -236,6 +234,20 @@ Rules:
 - Do not include: prepositions, conjunctions, generic verbs like "is" or "causes", or full sentences.
 - Skip numbers and their units; they are blanked automatically.
 - Aim for roughly one phrase per 8 to 12 words.
+
+TASK 2 - Split the text into cards
+Rewrite the whole text again, and divide it into flashcards. Each card is a group of sentences that belong together, or one diagram or table.
+
+Rules:
+- Do not change, shorten, translate or summarize the wording. Copy the text exactly as it is, only fix line breaks that were broken by the PDF.
+- Put each group of sentences in one card. Put each diagram or table in its own card, with its line breaks kept.
+- Put this exact line between every two cards, on its own line, with nothing else on it:
+${CARD_SEPARATOR}
+- Do not put the separator before the first card or after the last card.
+- Do not number the cards and do not add titles or comments.
+
+Output format:
+Give two separate code blocks and nothing else. The first code block holds the list from TASK 1. The second code block holds the cards from TASK 2.
 
 Text:
 """
