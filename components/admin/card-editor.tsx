@@ -118,9 +118,9 @@ export const CardEditor = memo(function CardEditor({
             i += 2
             while (i < lines.length && isTableRow(lines[i].value)) rows.push(lines[i++])
             blocks.push({ type: 'table', lines: rows.filter((line, index) => index !== 1) })
-          } else if (/^[\s│├└┌┐┘┌┬┴─┼]+/.test(lines[i].value) && /[├└│─└┌┐┘]/.test(lines[i].value)) {
+          } else if (/^[\s│├└┌┐┘┌┬┴─┼]+/.test(lines[i].value) && /^\s*[│├└┌┐┘┬┴─┼]/.test(lines[i].value)) {
             const rows = [lines[i++]]
-            while (i < lines.length && /[├└│─└┌┐┘]/.test(lines[i].value)) rows.push(lines[i++])
+            while (i < lines.length && /^\s*[│├└┌┐┘┬┴─┼]/.test(lines[i].value)) rows.push(lines[i++])
             blocks.push({ type: 'diagram', lines: rows })
           } else {
             blocks.push({ type: 'line', lines: [lines[i++]] })
