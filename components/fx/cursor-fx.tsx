@@ -24,6 +24,29 @@ export function CursorFx() {
     let magnet: Element | null = null
     let visible = false
     let raf = 0
+    const root = document.documentElement
+
+    // Hit-test from the real pointer position (not e.target) so it stays correct
+    // during pointer capture (box-select), after scroll, and when modals open/close.
+    const refresh = () => {
+      if (!visible) return
+      const el = document.elementFromPoint(x, y)
+      const hit = el?.closest?.(INTERACTIVE) ?? null
+      const card = el?.closest?.('[data-card-id]') ?? null
+      const field = el?.closest?.('input, textarea, [contenteditable="true"]') ?? null
+      const dragging = document.body.dataset.dragging === 'true'
+      // magnetic only on small buttons/links
+      if (hit && !card) {
+        const r = hit.getBoundingClientRect()
+        magnet = r.width < 260 && r.height < 90 ? hit : null
+      } else magnet = null
+      const grab = !!card && !hit && !field && !dragging
+      ring.dataset.active = String(!!hit)
+      ring.dataset.grab = String(grab)
+      ring.dataset.grabbing = String(dragging)
+      // native text caret is shown over fields, so keep our dot hidden there
+      dot.dataset.hide = String(!!magnet || grab || dragging || !!field)
+    }
 
     const onMove = (e: PointerEvent | DragEvent) => {
       if ('pointerType' in e && e.pointerType !== 'mouse') return
@@ -35,23 +58,13 @@ export function CursorFx() {
         ry = ty = y
         ring.style.opacity = '1'
         dot.style.opacity = '1'
+        root.classList.add('cursor-fx-on') // hide native cursor only now
       }
-      const el = e.target as Element | null
-      const hit = el?.closest?.(INTERACTIVE) ?? null
-      const card = el?.closest?.('[data-card-id]') ?? null
-      const dragging = document.body.dataset.dragging === 'true'
-      // magnetic only on small buttons/links
-      if (hit && !card) {
-        const r = hit.getBoundingClientRect()
-        magnet = r.width < 260 && r.height < 90 ? hit : null
-      } else magnet = null
-      ring.dataset.active = String(!!hit)
-      ring.dataset.grab = String(!!card && !hit && !dragging)
-      ring.dataset.grabbing = String(dragging)
-      dot.dataset.hide = String(!!magnet || (!!card && !hit) || dragging)
+      refresh()
     }
 
     const onDown = (e: PointerEvent) => {
+      if (e.pointerType !== 'mouse') return
       ring.dataset.down = 'true'
       const ripple = document.createElement('span')
       ripple.className = 'cursor-ripple'
@@ -60,14 +73,28 @@ export function CursorFx() {
       ripple.addEventListener('animationend', () => ripple.remove())
       layer.appendChild(ripple)
     }
-    const onUp = () => (ring.dataset.down = 'false')
+    const onUp = () => {
+      ring.dataset.down = 'false'
+      // let React clear body[data-dragging] first, then re-evaluate
+      requestAnimationFrame(refresh)
+    }
     const onLeave = () => {
+      ring.dataset.down = 'false'
       visible = false
       ring.style.opacity = '0'
       dot.style.opacity = '0'
+      root.classList.remove('cursor-fx-on') // give the native cursor back
+    }
+    // mouseleave on `document` is unreliable; mouseout with no relatedTarget = left the window
+    const onOut = (e: MouseEvent) => {
+      if (!e.relatedTarget) onLeave()
     }
 
     const loop = () => {
+      if (!visible) {
+        raf = requestAnimationFrame(loop)
+        return
+      }
       if (magnet && magnet.isConnected) {
         const r = magnet.getBoundingClientRect()
         const cx = r.left + r.width / 2
@@ -97,20 +124,31 @@ export function CursorFx() {
     }
 
     raf = requestAnimationFrame(loop)
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('dragover', onMove)
-    window.addEventListener('pointerdown', onDown)
-    window.addEventListener('pointerup', onUp)
-    window.addEventListener('dragend', onUp)
-    document.documentElement.addEventListener('pointerleave', onLeave)
+    // capture phase (true) so components calling e.stopPropagation() (context menu,
+    // modals…) can't swallow the events and freeze the ring / ripple / down state
+    window.addEventListener('pointermove', onMove, true)
+    window.addEventListener('dragover', onMove, true)
+    window.addEventListener('pointerdown', onDown, true)
+    window.addEventListener('pointerup', onUp, true)
+    window.addEventListener('pointercancel', onUp, true)
+    window.addEventListener('drop', onUp, true)
+    window.addEventListener('dragend', onUp, true)
+    window.addEventListener('scroll', refresh, true)
+    window.addEventListener('blur', onLeave)
+    document.addEventListener('mouseout', onOut)
     return () => {
       cancelAnimationFrame(raf)
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('dragover', onMove)
-      window.removeEventListener('pointerdown', onDown)
-      window.removeEventListener('pointerup', onUp)
-      window.removeEventListener('dragend', onUp)
-      document.documentElement.removeEventListener('pointerleave', onLeave)
+      root.classList.remove('cursor-fx-on')
+      window.removeEventListener('pointermove', onMove, true)
+      window.removeEventListener('dragover', onMove, true)
+      window.removeEventListener('pointerdown', onDown, true)
+      window.removeEventListener('pointerup', onUp, true)
+      window.removeEventListener('pointercancel', onUp, true)
+      window.removeEventListener('drop', onUp, true)
+      window.removeEventListener('dragend', onUp, true)
+      window.removeEventListener('scroll', refresh, true)
+      window.removeEventListener('blur', onLeave)
+      document.removeEventListener('mouseout', onOut)
     }
   }, [])
 

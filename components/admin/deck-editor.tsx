@@ -459,6 +459,8 @@ export function DeckEditor({ existingDecks }: { existingDecks: DeckSummary[] }) 
               onPointerDown={startBox}
               onPointerMove={moveBox}
               onPointerUp={() => setBox(null)}
+              onPointerCancel={() => setBox(null)}
+              onLostPointerCapture={() => setBox(null)}
               onContextMenu={(e) => {
                 if ((e.target as HTMLElement).closest('[data-card-id]')) return
                 openMenu(null, e)

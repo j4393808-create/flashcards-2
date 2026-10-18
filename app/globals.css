@@ -75,13 +75,15 @@
 }
 
 @media (pointer: fine) and (prefers-reduced-motion: no-preference) {
-  html,
-  html * {
+  /* Native cursor is hidden ONLY while CursorFx is actually drawing its own
+     (class is toggled from JS), so the user is never left with no cursor. */
+  html.cursor-fx-on,
+  html.cursor-fx-on * {
     cursor: none !important;
   }
-  input,
-  textarea,
-  [contenteditable='true'] {
+  html.cursor-fx-on input,
+  html.cursor-fx-on textarea,
+  html.cursor-fx-on [contenteditable='true'] {
     cursor: text !important;
   }
 }
