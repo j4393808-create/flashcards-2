@@ -10,7 +10,6 @@ import { deleteCards, finishDeckSave, loadDeck, saveCard, saveDeckMeta } from '@
 import { CardEditor } from './card-editor'
 import { SourcePanel } from './source-panel'
 
-const DRAFT_KEY = 'sammaa-admin-draft'
 const PAGE_SIZE = 20
 const emptyDeck: Deck = { id: '', title: '', subject: '', description: '', isFree: true, cards: [] }
 
@@ -21,27 +20,12 @@ export function DeckEditor({ existingDecks }: { existingDecks: DeckSummary[] }) 
   const [deck, setDeck] = useState<Deck>(emptyDeck)
   const [terms, setTerms] = useState('')
   const [page, setPage] = useState(0)
-  const [hydrated, setHydrated] = useState(false)
+  const [active, setActive] = useState(false)
+  const [newName, setNewName] = useState('')
   const [loadingDeck, setLoadingDeck] = useState(false)
   const [save, setSave] = useState<SaveState>({ status: 'idle' })
   const savedIds = useRef<{ deckId: string; ids: string[] } | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(DRAFT_KEY)
-      if (raw) {
-        const draft = JSON.parse(raw)
-        setDeck({ ...emptyDeck, ...draft.deck })
-        setTerms(draft.terms ?? '')
-      }
-    } catch {}
-    setHydrated(true)
-  }, [])
-
-  useEffect(() => {
-    if (hydrated) localStorage.setItem(DRAFT_KEY, JSON.stringify({ deck, terms }))
-  }, [deck, terms, hydrated])
 
   const pageCount = Math.max(1, Math.ceil(deck.cards.length / PAGE_SIZE))
   const visible = deck.cards.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
@@ -269,11 +253,36 @@ export function DeckEditor({ existingDecks }: { existingDecks: DeckSummary[] }) 
       savedIds.current = { deckId: full.id, ids: full.cards.map((c) => c.id) }
       setPage(0)
       setSave({ status: 'idle' })
+      setActive(true)
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Could not load the deck.')
     } finally {
       setLoadingDeck(false)
     }
+  }
+
+  // Type a deck name: open it if it already exists, otherwise start a new deck with that name.
+  const startFromName = async () => {
+    const name = newName.trim()
+    if (!name) return
+    const existing = existingDecks.find((d) => d.title.trim().toLowerCase() === name.toLowerCase())
+    if (existing) {
+      await openExisting(existing.id)
+      setNewName('')
+      return
+    }
+    if (deck.cards.length && !confirm('The cards currently in the editor will be replaced. Continue?')) return
+    const taken = new Set(existingDecks.map((d) => d.id))
+    const base = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || `deck-${Date.now().toString(36)}`
+    let id = base
+    for (let n = 2; taken.has(id); n++) id = `${base}-${n}`
+    setDeck({ ...emptyDeck, id, title: name })
+    savedIds.current = null
+    setTerms('')
+    setPage(0)
+    setSave({ status: 'idle' })
+    setNewName('')
+    setActive(true)
   }
 
   const saveToSite = async () => {
@@ -320,6 +329,7 @@ export function DeckEditor({ existingDecks }: { existingDecks: DeckSummary[] }) 
       setDeck({ ...emptyDeck, ...data })
       savedIds.current = null
       setPage(0)
+      setActive(true)
     } catch {
       alert('This file is not a valid deck file.')
     }
@@ -330,6 +340,7 @@ export function DeckEditor({ existingDecks }: { existingDecks: DeckSummary[] }) 
     setDeck(emptyDeck)
     savedIds.current = null
     setPage(0)
+    setActive(false)
   }
 
   const meta = (key: 'id' | 'title' | 'subject' | 'description') => ({
@@ -358,9 +369,31 @@ export function DeckEditor({ existingDecks }: { existingDecks: DeckSummary[] }) 
             ))}
           </select>
         </label>
-        <p className="text-xs text-muted-foreground">Or start a new deck with the steps below</p>
+        <form
+          className="flex min-w-60 flex-1 items-end gap-2"
+          onSubmit={(e) => {
+            e.preventDefault()
+            startFromName()
+          }}
+        >
+          <label className="flex flex-1 flex-col gap-1 text-xs font-medium text-muted-foreground">
+            Or type a deck name (opens it if it exists, otherwise creates it)
+            <input
+              className="rounded-lg border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+              value={newName}
+              disabled={loadingDeck || saving}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="New deck name"
+            />
+          </label>
+          <Button type="submit" size="sm" disabled={!newName.trim() || loadingDeck || saving}>
+            Open / Create
+          </Button>
+        </form>
       </section>
 
+      {active && (
+        <>
       <section className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-2 lg:grid-cols-5">
         <Field label="Deck title" {...meta('title')} placeholder="Guyton – Heart" />
         <Field label="Subject" {...meta('subject')} placeholder="Physiology" />
@@ -558,6 +591,8 @@ export function DeckEditor({ existingDecks }: { existingDecks: DeckSummary[] }) 
           </nav>
         )}
       </section>
+        </>
+      )}
     </div>
   )
 }
