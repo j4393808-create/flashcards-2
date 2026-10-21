@@ -5,13 +5,28 @@ import Link from 'next/link'
 import { ArrowLeft, ArrowRight, FolderOpen, Layers, Lock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { DeckGroup, DeckSummary } from '@/lib/decks'
+import { demoDeckSummary, demoGroup } from '@/lib/demo-data'
+import { useDemoState } from '@/lib/demo-tour'
 
 type BrowserDeck = DeckSummary & { open: boolean }
 type BrowserGroup = DeckGroup & { decks: BrowserDeck[] }
 
-export function GroupBrowser({ groups }: { groups: BrowserGroup[] }) {
+export function GroupBrowser({ groups: realGroups }: { groups: BrowserGroup[] }) {
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
+  const demo = useDemoState()
+  // While the guided tour runs, only the tutorial's demo group is listed.
+  const groups: BrowserGroup[] = demo.active
+    ? [{ ...demoGroup, decks: [{ ...demoDeckSummary, open: demo.unlocked }] }]
+    : realGroups
   const selectedGroup = groups.find((group) => group.id === selectedGroupId)
+
+  if (groups.length === 0) {
+    return (
+      <p className="rounded-xl border border-dashed p-10 text-center text-sm text-muted-foreground">
+        No decks published yet.
+      </p>
+    )
+  }
 
   if (selectedGroup) {
     return (

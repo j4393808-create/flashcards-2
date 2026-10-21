@@ -28,20 +28,14 @@ export default async function HomePage() {
           {hasPaid && <RedeemForm className="w-full rounded-xl border bg-card p-4 md:max-w-sm" />}
         </section>
 
-        {decks.length === 0 ? (
-          <p className="rounded-xl border border-dashed p-10 text-center text-sm text-muted-foreground">
-            No decks published yet.
-          </p>
-        ) : (
-          <GroupBrowser
-            groups={groups.map((group) => ({
-              ...group,
-              decks: decks
-                .filter((deck) => deck.groupId === group.id)
-                .map((deck) => ({ ...deck, open: canOpen(deck, access) })),
-            })).filter((group) => group.decks.length > 0)}
-          />
-        )}
+        <GroupBrowser
+          groups={groups.map((group) => ({
+            ...group,
+            decks: decks
+              .filter((deck) => deck.groupId === group.id)
+              .map((deck) => ({ ...deck, open: canOpen(deck, access) })),
+          })).filter((group) => group.decks.length > 0)}
+        />
       </main>
             {session?.isAdmin && (
         <footer className="border-t py-6 text-center text-xs text-muted-foreground">

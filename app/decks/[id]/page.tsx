@@ -6,7 +6,32 @@ import { SiteHeader } from '@/components/site-header'
 import { StudySession } from '@/components/study-session'
 import { RedeemForm } from '@/components/redeem-form'
 import { getDeck, getDeckMeta } from '@/lib/decks'
+import { DemoDeckView } from '@/components/demo-deck-view'
 import { canOpen, getAccess } from '@/lib/access'
+import { DEMO_DECK_ID, demoDeck } from '@/lib/demo-data'
+
+// Tutorial-only deck: not stored anywhere, only reachable while the tour runs.
+function DemoDeckPage() {
+  return (
+    <div className="min-h-dvh flex flex-col">
+      <SiteHeader>
+        <Link href="/" data-tour="home-link" data-tour-action="return-home" className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="size-4" aria-hidden />
+          All decks
+        </Link>
+      </SiteHeader>
+      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
+        <div className="mb-6">
+          <span className="text-xs font-medium text-primary">{demoDeck.subject}</span>
+          <h1 className="text-2xl font-bold" dir="auto">
+            {demoDeck.title}
+          </h1>
+        </div>
+        <DemoDeckView />
+      </main>
+    </div>
+  )
+}
 
 export async function generateMetadata({ params }: PageProps<'/decks/[id]'>): Promise<Metadata> {
   const deck = await getDeckMeta((await params).id)
@@ -15,6 +40,7 @@ export async function generateMetadata({ params }: PageProps<'/decks/[id]'>): Pr
 
 export default async function DeckPage({ params }: PageProps<'/decks/[id]'>) {
   const { id } = await params
+  if (id === DEMO_DECK_ID) return <DemoDeckPage />
   const [meta, access] = await Promise.all([getDeckMeta(id), getAccess()])
   if (!meta) notFound()
   const open = canOpen(meta, access)

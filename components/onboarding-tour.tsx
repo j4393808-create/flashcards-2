@@ -4,40 +4,72 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { ArrowLeft, Check, Sparkles, X } from 'lucide-react'
 import { completeOnboarding } from '@/app/actions'
+import { endDemo, startDemo, useDemoState } from '@/lib/demo-tour'
 
 type TourStep = {
   title: string
   body: string
   selector?: string
   action?: string
+  /** Advance automatically once this part of the demo state is reached. */
+  until?: 'unlocked'
   route: 'home' | 'deck' | 'any'
 }
 
 const baseSteps: TourStep[] = [
   {
     title: 'أهلًا بيك في كارت وكتاب',
-    body: 'جولة سريعة تعرّفك على التطبيق في أقل من دقيقة.',
-    route: 'home',
-  },
-  {
-    title: 'كود الوصول',
-    body: 'لو معاك كود، اكتبه هنا لفتح الدِكات المدفوعة.',
-    selector: '[data-tour="access-code"]',
+    body: 'جولة سريعة هنجرب فيها مجموعة تجريبية، وبتتشال أول ما تخلص.',
     route: 'home',
   },
   {
     title: 'افتح مجموعة',
-    body: 'اضغط على أي مجموعة لتشوف الدِكات اللي جواها.',
+    body: 'دي مجموعة تجريبية. اضغط عليها تشوف الدِكات اللي جواها.',
     selector: '[data-tour="group-card"]',
     action: 'open-group',
     route: 'home',
   },
   {
-    title: 'اختار دِك',
-    body: 'اضغط على دِك لبدء المذاكرة.',
+    title: 'دِك مدفوع',
+    body: 'الدِك ده عليه علامة Paid، يعني محتاج كود وصول. افتحه.',
     selector: '[data-tour="deck-card"]',
     action: 'open-deck',
     route: 'home',
+  },
+  {
+    title: 'اطلب كود تجريبي',
+    body: 'الأكواد بتوصلك على واتساب. اضغط الزرار عشان يبعتلك كود تجريبي.',
+    selector: '[data-tour="demo-request"]',
+    action: 'request-demo-code',
+    route: 'deck',
+  },
+  {
+    title: 'وصلتك رسالة',
+    body: 'جالك إشعار من واتساب. اضغط عليه عشان تفتح الرسالة.',
+    selector: '[data-tour="whatsapp-notification"]',
+    action: 'open-whatsapp',
+    route: 'deck',
+  },
+  {
+    title: 'انسخ الكود',
+    body: 'دي رسالة كارت وكتاب فيها الكود. اضغط «نسخ الكود».',
+    selector: '[data-tour="whatsapp-copy"]',
+    action: 'copy-code',
+    route: 'deck',
+  },
+  {
+    title: 'ارجع للتطبيق',
+    body: 'اضغط السهم للرجوع من واتساب.',
+    selector: '[data-tour="whatsapp-close"]',
+    action: 'close-whatsapp',
+    route: 'deck',
+  },
+  {
+    title: 'الصق الكود',
+    body: 'الصق الكود في خانة كود الوصول واضغط Unlock لفتح الدِك.',
+    selector: '[data-tour="demo-code-form"]',
+    until: 'unlocked',
+    route: 'deck',
   },
   {
     title: 'اكشف الإجابة',
@@ -130,17 +162,22 @@ export function OnboardingTour({
   const [missingTarget, setMissingTarget] = useState(false)
   const [finishing, setFinishing] = useState(false)
   const [error, setError] = useState('')
+  const demo = useDemoState()
   const step = steps[stepIndex]
   const isFinalStep = stepIndex === steps.length - 1
 
   useEffect(() => {
-    if (!completed) setActive(true)
+    if (!completed) {
+      startDemo()
+      setActive(true)
+    }
   }, [completed, userId])
 
   useEffect(() => {
     const restart = () => {
       setStepIndex(0)
       setError('')
+      startDemo()
       setActive(true)
     }
     window.addEventListener('sammaa-tour-restart', restart)
@@ -267,6 +304,13 @@ export function OnboardingTour({
     return () => document.removeEventListener('click', onClick, true)
   }, [active, step, steps.length])
 
+  // Advance automatically when the demo reaches the state the step waits for.
+  useEffect(() => {
+    if (!active || step?.until !== 'unlocked' || !demo.unlocked) return
+    setStepIndex((index) => Math.min(index + 1, steps.length - 1))
+    setError('')
+  }, [active, step, demo.unlocked, steps.length])
+
   useEffect(() => {
     if (!active) return
     const onKeyDown = (event: KeyboardEvent) => {
@@ -288,6 +332,7 @@ export function OnboardingTour({
     try {
       await completeOnboarding()
       setActive(false)
+      endDemo()
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not save your tutorial progress.')
     } finally {
@@ -297,7 +342,7 @@ export function OnboardingTour({
 
   if (!active || !step) return null
 
-  const waitingForAction = !!step.action && !missingTarget
+  const waitingForAction = (!!step.action || !!step.until) && !missingTarget
   const hasTarget = !!step.selector && !!layout && !missingTarget
   const placed = hasTarget && layout
     ? { top: layout.top, left: layout.left, width: layout.width }
