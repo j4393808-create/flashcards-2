@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { usePathname } from 'next/navigation'
-import { ArrowRight, Check, ChevronLeft, PartyPopper, Sparkles, X } from 'lucide-react'
+import { usePathname, useRouter } from 'next/navigation'
+import { ArrowLeft, Check, Sparkles, X } from 'lucide-react'
 import { completeOnboarding } from '@/app/actions'
 
 type TourStep = {
@@ -11,72 +11,65 @@ type TourStep = {
   selector?: string
   action?: string
   route: 'home' | 'deck' | 'admin' | 'any'
-  actionHint?: string
 }
 
 const baseSteps: TourStep[] = [
   {
     title: 'أهلًا بيك في كارت وكتاب',
-    body: 'جولة قصيرة هتعرّفك على طريقة تنظيم المحتوى، أدوات المذاكرة، وتتبع تقدمك. هتتقدم خطوة بخطوة، وتقدر تتخطاها في أي وقت.',
-    route: 'any',
+    body: 'جولة سريعة تعرّفك على التطبيق في أقل من دقيقة.',
+    route: 'home',
   },
   {
-    title: 'افتح المحتوى المدفوع',
-    body: 'لو معاك كود وصول، اكتبه هنا لفتح الدِكات المدفوعة على حسابك. لو مفيش دِكات مدفوعة حاليًا، تقدر تكمل عادي.',
+    title: 'كود الوصول',
+    body: 'لو معاك كود، اكتبه هنا لفتح الدِكات المدفوعة.',
     selector: '[data-tour="access-code"]',
     route: 'home',
   },
   {
-    title: 'افتح مجموعة دراسية',
-    body: 'المجموعات بترتب الدِكات حسب المادة أو الموضوع. افتح مجموعة عشان نشوف الدِكات اللي جواها.',
+    title: 'افتح مجموعة',
+    body: 'اضغط على أي مجموعة لتشوف الدِكات اللي جواها.',
     selector: '[data-tour="group-card"]',
     action: 'open-group',
-    actionHint: 'اضغط على أي مجموعة للمتابعة',
     route: 'home',
   },
   {
     title: 'اختار دِك',
-    body: 'كل دِك عبارة عن كروت مراجعة مستقلة. افتح واحدًا للانتقال إلى مساحة المذاكرة.',
+    body: 'اضغط على دِك لبدء المذاكرة.',
     selector: '[data-tour="deck-card"]',
     action: 'open-deck',
-    actionHint: 'اضغط على أي دِك للمتابعة',
     route: 'home',
   },
   {
-    title: 'اكشف الإجابة بنفسك',
-    body: 'اضغط على الكلمة المخفية لتظهر. جرّب كشف كلمة واحدة عشان تحافظ على الاستدعاء النشط.',
+    title: 'اكشف الإجابة',
+    body: 'اضغط على كلمة مخفية لتظهر.',
     selector: '[data-tour="study-reveal"]',
     action: 'reveal-word',
-    actionHint: 'اضغط على كلمة مخفية',
     route: 'deck',
   },
   {
-    title: 'أو اكتب الإجابة',
-    body: 'وضع الكتابة بيخليك تختبر ذاكرتك قبل ما تشوف الإجابة. بدّل للوضع ده وقت ما تحب.',
+    title: 'وضع الكتابة',
+    body: 'اختار «اكتب الإجابة» عشان تختبر نفسك.',
     selector: '[data-tour="study-type-mode"]',
     action: 'select-type-mode',
-    actionHint: 'اختار وضع «اكتب الإجابة»',
     route: 'deck',
   },
   {
-    title: 'راجع التقدم وغيّر الترتيب',
-    body: 'الشريط بيتابع الكروت اللي حفظتها، وتقدر تلخبط ترتيبها عشان تختبر نفسك بشكل مختلف.',
+    title: 'لخبط الترتيب',
+    body: 'اضغط «لخبط الترتيب» لتغيير ترتيب الكروت.',
     selector: '[data-tour="study-shuffle"]',
     action: 'shuffle-cards',
-    actionHint: 'اضغط «لخبط الترتيب»',
     route: 'deck',
   },
   {
-    title: 'إعداداتك واختصاراتك',
-    body: 'من الإعدادات تقدر تتحكم في الصوت ومستواه، وتراجع اختصارات لوحة المفاتيح.',
+    title: 'الإعدادات',
+    body: 'افتحها للتحكم في الصوت والاختصارات.',
     selector: '[data-tour="settings-trigger"]',
     action: 'open-settings',
-    actionHint: 'افتح الإعدادات من أعلى الصفحة',
     route: 'any',
   },
   {
-    title: 'اختصارات توفر وقتك',
-    body: 'استخدم Space لكشف الإجابة التالية، والأسهم للتنقل بين الكروت، وEnter لتسجيل الإجابة بعد كشفها.',
+    title: 'الاختصارات',
+    body: 'Space للكشف، الأسهم للتنقل، Enter للتسجيل.',
     selector: '[data-tour="settings-shortcuts"]',
     route: 'any',
   },
@@ -84,26 +77,24 @@ const baseSteps: TourStep[] = [
 
 const adminSteps: TourStep[] = [
   {
-    title: 'مساحة إدارة المحتوى',
-    body: 'لو عندك صلاحية إدارة، تقدر تنشئ المجموعات والدِكات وتحدّث الكروت من لوحة الأدمن.',
+    title: 'لوحة الأدمن',
+    body: 'افتحها لإدارة المجموعات والدِكات والكروت.',
     selector: '[data-tour="admin-link"]',
     action: 'open-admin',
-    actionHint: 'افتح لوحة الأدمن للمتابعة',
     route: 'any',
   },
   {
-    title: 'إدارة الوصول',
-    body: 'من تبويب أكواد الوصول تقدر تنشئ أكواد للمحتوى المدفوع وتتابع حالتها.',
+    title: 'أكواد الوصول',
+    body: 'من هنا تنشئ أكواد للمحتوى المدفوع وتتابعها.',
     selector: '[data-tour="admin-codes-tab"]',
     action: 'open-admin-codes',
-    actionHint: 'افتح تبويب Access codes',
     route: 'admin',
   },
 ]
 
 const finishStep: TourStep = {
-  title: 'أنت جاهز تبدأ',
-  body: 'اختار مجموعة، افتح دِك، وابدأ المراجعة على طريقتك. تقدمك بيتحفظ على حسابك تلقائيًا.',
+  title: 'أنت جاهز!',
+  body: 'ابدأ المراجعة، وتقدمك بيتحفظ تلقائيًا.',
   route: 'any',
 }
 
@@ -112,10 +103,6 @@ function routeMatches(route: TourStep['route'], pathname: string) {
   if (route === 'home') return pathname === '/'
   if (route === 'deck') return pathname.startsWith('/decks/')
   return pathname === '/admin'
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max)
 }
 
 export function OnboardingTour({
@@ -128,6 +115,7 @@ export function OnboardingTour({
   isAdmin: boolean
 }) {
   const pathname = usePathname()
+  const router = useRouter()
   const steps = useMemo(() => [...baseSteps, ...(isAdmin ? adminSteps : []), finishStep], [isAdmin])
   const [active, setActive] = useState(false)
   const [stepIndex, setStepIndex] = useState(0)
@@ -152,20 +140,58 @@ export function OnboardingTour({
     return () => window.removeEventListener('sammaa-tour-restart', restart)
   }, [])
 
+  // Take the user to the page a step explains, automatically.
+  useEffect(() => {
+    if (!active || !step || routeMatches(step.route, pathname)) return
+
+    if (step.route === 'home') {
+      router.push('/')
+      return
+    }
+    if (step.route === 'admin') {
+      router.push('/admin')
+      return
+    }
+    // step.route === 'deck'
+    if (pathname !== '/') {
+      router.push('/')
+      return
+    }
+    let attempts = 0
+    let opened = false
+    const timer = window.setInterval(() => {
+      attempts++
+      const deckLink = document.querySelector<HTMLAnchorElement>('a[data-tour="deck-card"]')
+      if (deckLink) {
+        window.clearInterval(timer)
+        router.push(deckLink.getAttribute('href') ?? '/')
+        return
+      }
+      if (!opened) {
+        const group = document.querySelector<HTMLElement>('[data-tour="group-card"]')
+        if (group) {
+          opened = true
+          group.click()
+        }
+      }
+      if (attempts > 40) window.clearInterval(timer)
+    }, 100)
+    return () => window.clearInterval(timer)
+  }, [active, step, pathname, router])
+
+  // Find and highlight the target element.
   useEffect(() => {
     if (!active || !step) return
     setTargetRect(null)
     setMissingTarget(false)
     if (!step.selector) return
-    if (!routeMatches(step.route, pathname)) {
-      setMissingTarget(true)
-      return
-    }
+    if (!routeMatches(step.route, pathname)) return
 
     let attempts = 0
     let frame = 0
     let timeout = 0
     let found = false
+    let cleanup: (() => void) | undefined
     const locate = () => {
       const target = document.querySelector<HTMLElement>(step.selector!)
       if (target) {
@@ -176,26 +202,23 @@ export function OnboardingTour({
         update()
         window.addEventListener('resize', update)
         window.addEventListener('scroll', update, true)
-        return () => {
+        cleanup = () => {
           window.removeEventListener('resize', update)
           window.removeEventListener('scroll', update, true)
         }
+        return
       }
       attempts++
-      if (attempts < 20) frame = requestAnimationFrame(locate)
+      if (attempts < 40) frame = requestAnimationFrame(locate)
       else {
         window.clearTimeout(timeout)
         setMissingTarget(true)
       }
-      return undefined
     }
-    let cleanup: (() => void) | undefined
-    frame = requestAnimationFrame(() => {
-      cleanup = locate()
-      timeout = window.setTimeout(() => {
-        if (!found) setMissingTarget(true)
-      }, 1800)
-    })
+    frame = requestAnimationFrame(locate)
+    timeout = window.setTimeout(() => {
+      if (!found) setMissingTarget(true)
+    }, 3000)
     return () => {
       cancelAnimationFrame(frame)
       window.clearTimeout(timeout)
@@ -203,6 +226,7 @@ export function OnboardingTour({
     }
   }, [active, pathname, step])
 
+  // Advance automatically when the user performs the step's action.
   useEffect(() => {
     if (!active || !step?.action) return
     const onClick = (event: MouseEvent) => {
@@ -247,12 +271,10 @@ export function OnboardingTour({
 
   if (!active || !step) return null
 
-  const cardWidth = Math.min(360, windowSafeWidth() - 24)
-  const cardLeft = targetRect ? clamp(targetRect.left + targetRect.width / 2 - cardWidth / 2, 12, windowSafeWidth() - cardWidth - 12) : (windowSafeWidth() - cardWidth) / 2
-  const placeAbove = !!targetRect && targetRect.bottom + 286 > windowSafeHeight()
-  const cardTop = targetRect
-    ? clamp(placeAbove ? targetRect.top - 286 : targetRect.bottom + 14, 12, windowSafeHeight() - 280)
-    : undefined
+  const waitingForAction = !!step.action && !missingTarget
+  // Keep the floating bar from covering a target that sits in the header.
+  const nearTop = !!targetRect && targetRect.top < 84
+  const barTop = nearTop && targetRect ? targetRect.bottom + 14 : 12
 
   return (
     <div className="tour-layer" aria-live="polite">
@@ -260,10 +282,10 @@ export function OnboardingTour({
         <div
           className="tour-spotlight"
           style={{
-            left: targetRect.left - 6,
-            top: targetRect.top - 6,
-            width: targetRect.width + 12,
-            height: targetRect.height + 12,
+            left: targetRect.left - 5,
+            top: targetRect.top - 5,
+            width: targetRect.width + 10,
+            height: targetRect.height + 10,
           }}
         />
       )}
@@ -271,62 +293,42 @@ export function OnboardingTour({
         role="dialog"
         aria-modal="false"
         aria-labelledby="tour-title"
-        className={`tour-card ${targetRect ? 'tour-card-targeted' : ''} ${isFinalStep ? 'tour-card-finale' : ''}`}
-        style={targetRect ? { left: cardLeft, top: cardTop, width: cardWidth } : undefined}
+        dir="rtl"
+        className={`tour-bar ${isFinalStep ? 'tour-bar-finale' : ''}`}
+        style={{ top: barTop }}
       >
-        <div className="tour-card-topline">
-          <span className="tour-step-count">{isFinalStep ? 'FINISH' : `STEP ${stepIndex + 1} / ${steps.length - 1}`}</span>
-          <button type="button" className="tour-skip" onClick={() => void finishTour()} disabled={finishing}>
-            Skip tour <X className="size-3.5" aria-hidden />
-          </button>
-        </div>
-        <div className="tour-progress-track" aria-hidden="true">
-          <span style={{ width: `${((stepIndex + 1) / steps.length) * 100}%` }} />
-        </div>
-        <div className="tour-icon-wrap">
-          {isFinalStep ? <PartyPopper className="size-6" aria-hidden /> : <Sparkles className="size-5" aria-hidden />}
-        </div>
-        {isFinalStep && <div className="tour-confetti" aria-hidden="true">{Array.from({ length: 12 }, (_, index) => <i key={index} />)}</div>}
-        <h2 id="tour-title" className="mt-4 text-xl font-bold leading-tight" dir="auto">{step.title}</h2>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground" dir="auto">{step.body}</p>
-        {step.action && !missingTarget && (
-          <p className="tour-action-hint mt-4" dir="auto">
-            <span className="tour-pulse-dot" /> {step.actionHint}
+        <span className="tour-bar-icon" aria-hidden>
+          {isFinalStep ? <Check className="size-4" /> : <Sparkles className="size-4" />}
+        </span>
+        <div className="tour-bar-text">
+          <h2 id="tour-title" className="tour-bar-title">
+            {waitingForAction && <span className="tour-pulse-dot" aria-hidden />}
+            {step.title}
+          </h2>
+          <p className="tour-bar-body">
+            {missingTarget && step.selector ? 'العنصر مش ظاهر هنا، كمّل للخطوة اللي بعدها.' : step.body}
           </p>
-        )}
-        {missingTarget && step.selector && (
-          <p className="mt-4 text-xs text-muted-foreground" dir="auto">
-            مش لاقيين العنصر المطلوب في الصفحة الحالية. تقدر تكمل الجولة أو تتخطى الخطوة.
-          </p>
-        )}
-        {error && <p role="alert" className="mt-3 text-xs text-destructive">{error}</p>}
-        <div className="mt-6 flex items-center justify-between gap-3">
-          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-            <ChevronLeft className="size-3.5" aria-hidden />
-            الخطوة {stepIndex + 1} من {steps.length}
-          </span>
+          {error && <p role="alert" className="tour-bar-error">{error}</p>}
+        </div>
+        <div className="tour-bar-side">
+          <span className="tour-bar-count">{isFinalStep ? steps.length : stepIndex + 1}/{steps.length}</span>
           {isFinalStep ? (
-            <button type="button" className="tour-primary-button" onClick={() => void finishTour()} disabled={finishing}>
-              {finishing ? 'جارٍ الحفظ…' : 'ابدأ رحلتك'}
-              <Check className="size-4" aria-hidden />
+            <button type="button" className="tour-bar-button" onClick={() => void finishTour()} disabled={finishing}>
+              {finishing ? '…' : 'ابدأ'}
             </button>
-          ) : step.action && !missingTarget ? (
-            <span className="text-xs font-medium text-primary">نفّذ الخطوة للمتابعة</span>
-          ) : (
-            <button type="button" className="tour-primary-button" onClick={advance}>
-              متابعة <ArrowRight className="size-4" aria-hidden />
+          ) : waitingForAction ? null : (
+            <button type="button" className="tour-bar-button" onClick={advance} aria-label="الخطوة التالية">
+              التالي <ArrowLeft className="size-3.5" aria-hidden />
+            </button>
+          )}
+          {!isFinalStep && (
+            <button type="button" className="tour-bar-close" onClick={() => void finishTour()} disabled={finishing} aria-label="تخطي الجولة">
+              <X className="size-4" aria-hidden />
             </button>
           )}
         </div>
+        <span className="tour-bar-progress" aria-hidden style={{ width: `${((stepIndex + 1) / steps.length) * 100}%` }} />
       </section>
     </div>
   )
-}
-
-function windowSafeWidth() {
-  return typeof window === 'undefined' ? 390 : window.innerWidth
-}
-
-function windowSafeHeight() {
-  return typeof window === 'undefined' ? 800 : window.innerHeight
 }
