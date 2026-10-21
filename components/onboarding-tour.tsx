@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { ArrowLeft, Check, Sparkles, X } from 'lucide-react'
 import { completeOnboarding } from '@/app/actions'
@@ -10,7 +10,7 @@ type TourStep = {
   body: string
   selector?: string
   action?: string
-  route: 'home' | 'deck' | 'admin' | 'any'
+  route: 'home' | 'deck' | 'any'
 }
 
 const baseSteps: TourStep[] = [
@@ -75,23 +75,6 @@ const baseSteps: TourStep[] = [
   },
 ]
 
-const adminSteps: TourStep[] = [
-  {
-    title: 'لوحة الأدمن',
-    body: 'افتحها لإدارة المجموعات والدِكات والكروت.',
-    selector: '[data-tour="admin-link"]',
-    action: 'open-admin',
-    route: 'any',
-  },
-  {
-    title: 'أكواد الوصول',
-    body: 'من هنا تنشئ أكواد للمحتوى المدفوع وتتابعها.',
-    selector: '[data-tour="admin-codes-tab"]',
-    action: 'open-admin-codes',
-    route: 'admin',
-  },
-]
-
 const finishStep: TourStep = {
   title: 'أنت جاهز!',
   body: 'ابدأ المراجعة، وتقدمك بيتحفظ تلقائيًا.',
@@ -102,24 +85,48 @@ function routeMatches(route: TourStep['route'], pathname: string) {
   if (route === 'any') return true
   if (route === 'home') return pathname === '/'
   if (route === 'deck') return pathname.startsWith('/decks/')
-  return pathname === '/admin'
+  return false
+}
+
+type Layout = {
+  hx: number
+  hy: number
+  hw: number
+  hh: number
+  vw: number
+  vh: number
+  top: number
+  left: number
+  width: number
+  below: boolean
+  arrowX: number
+}
+
+function holePath(l: Layout) {
+  const r = Math.min(14, l.hw / 2, l.hh / 2)
+  const { hx: x, hy: y, hw: w, hh: h } = l
+  return (
+    `M0 0H${l.vw}V${l.vh}H0Z ` +
+    `M${x + r} ${y}H${x + w - r}A${r} ${r} 0 0 1 ${x + w} ${y + r}V${y + h - r}A${r} ${r} 0 0 1 ${x + w - r} ${y + h}` +
+    `H${x + r}A${r} ${r} 0 0 1 ${x} ${y + h - r}V${y + r}A${r} ${r} 0 0 1 ${x + r} ${y}Z`
+  )
 }
 
 export function OnboardingTour({
   userId,
   completed,
-  isAdmin,
 }: {
   userId: string
   completed: boolean
-  isAdmin: boolean
+  isAdmin?: boolean
 }) {
   const pathname = usePathname()
   const router = useRouter()
-  const steps = useMemo(() => [...baseSteps, ...(isAdmin ? adminSteps : []), finishStep], [isAdmin])
+  const steps = useMemo(() => [...baseSteps, finishStep], [])
   const [active, setActive] = useState(false)
   const [stepIndex, setStepIndex] = useState(0)
-  const [targetRect, setTargetRect] = useState<DOMRect | null>(null)
+  const [layout, setLayout] = useState<Layout | null>(null)
+  const calloutRef = useRef<HTMLElement | null>(null)
   const [missingTarget, setMissingTarget] = useState(false)
   const [finishing, setFinishing] = useState(false)
   const [error, setError] = useState('')
@@ -146,10 +153,6 @@ export function OnboardingTour({
 
     if (step.route === 'home') {
       router.push('/')
-      return
-    }
-    if (step.route === 'admin') {
-      router.push('/admin')
       return
     }
     // step.route === 'deck'
@@ -179,51 +182,74 @@ export function OnboardingTour({
     return () => window.clearInterval(timer)
   }, [active, step, pathname, router])
 
-  // Find and highlight the target element.
+  // Find the target, then track it every frame so the frame stays exact
+  // while zooming, scrolling, resizing or rotating a phone.
   useEffect(() => {
     if (!active || !step) return
-    setTargetRect(null)
+    setLayout(null)
     setMissingTarget(false)
     if (!step.selector) return
     if (!routeMatches(step.route, pathname)) return
 
-    let attempts = 0
     let frame = 0
-    let timeout = 0
     let found = false
-    let cleanup: (() => void) | undefined
-    const locate = () => {
+    let scrolled = false
+    const startedAt = performance.now()
+    let last = ''
+
+    const tick = () => {
       const target = document.querySelector<HTMLElement>(step.selector!)
-      if (target) {
-        found = true
-        window.clearTimeout(timeout)
-        target.scrollIntoView({ block: 'center', behavior: 'smooth' })
-        const update = () => setTargetRect(target.isConnected ? target.getBoundingClientRect() : null)
-        update()
-        window.addEventListener('resize', update)
-        window.addEventListener('scroll', update, true)
-        cleanup = () => {
-          window.removeEventListener('resize', update)
-          window.removeEventListener('scroll', update, true)
+      if (target && target.isConnected) {
+        if (!found) {
+          found = true
+          setMissingTarget(false)
         }
-        return
-      }
-      attempts++
-      if (attempts < 40) frame = requestAnimationFrame(locate)
-      else {
-        window.clearTimeout(timeout)
+        if (!scrolled) {
+          scrolled = true
+          target.scrollIntoView({ block: 'center', behavior: 'smooth' })
+        }
+        const r = target.getBoundingClientRect()
+        const vw = document.documentElement.clientWidth
+        const vh = window.innerHeight
+        const callout = calloutRef.current
+        const ch = callout?.offsetHeight || 96
+        const cw = Math.min(280, vw - 20)
+        const pad = 6
+        const hx = r.left - pad
+        const hy = r.top - pad
+        const hw = r.width + pad * 2
+        const hh = r.height + pad * 2
+        const below = vh - (hy + hh) >= ch + 24 || vh - (hy + hh) >= hy
+        let top = below ? hy + hh + 12 : hy - 12 - ch
+        top = Math.max(8, Math.min(top, vh - ch - 8))
+        const center = hx + hw / 2
+        const left = Math.max(10, Math.min(center - cw / 2, vw - cw - 10))
+        const arrowX = Math.max(18, Math.min(center - left, cw - 18))
+        const next: Layout = {
+          hx: Math.round(hx * 2) / 2,
+          hy: Math.round(hy * 2) / 2,
+          hw: Math.round(hw * 2) / 2,
+          hh: Math.round(hh * 2) / 2,
+          vw,
+          vh,
+          top: Math.round(top),
+          left: Math.round(left),
+          width: cw,
+          below,
+          arrowX: Math.round(arrowX),
+        }
+        const key = JSON.stringify(next)
+        if (key !== last) {
+          last = key
+          setLayout(next)
+        }
+      } else if (!found && performance.now() - startedAt > 3000) {
         setMissingTarget(true)
       }
+      frame = requestAnimationFrame(tick)
     }
-    frame = requestAnimationFrame(locate)
-    timeout = window.setTimeout(() => {
-      if (!found) setMissingTarget(true)
-    }, 3000)
-    return () => {
-      cancelAnimationFrame(frame)
-      window.clearTimeout(timeout)
-      cleanup?.()
-    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
   }, [active, pathname, step])
 
   // Advance automatically when the user performs the step's action.
@@ -272,45 +298,62 @@ export function OnboardingTour({
   if (!active || !step) return null
 
   const waitingForAction = !!step.action && !missingTarget
-  // Keep the floating bar from covering a target that sits in the header.
-  const nearTop = !!targetRect && targetRect.top < 84
-  const barTop = nearTop && targetRect ? targetRect.bottom + 14 : 12
+  const hasTarget = !!step.selector && !!layout && !missingTarget
+  const placed = hasTarget && layout
+    ? { top: layout.top, left: layout.left, width: layout.width }
+    : undefined
 
   return (
     <div className="tour-layer" aria-live="polite">
-      {targetRect && (
+      <div
+        className="tour-dim"
+        style={
+          hasTarget && layout
+            ? { clipPath: `path(evenodd, '${holePath(layout)}')` }
+            : undefined
+        }
+      />
+      {hasTarget && layout && (
         <div
           className="tour-spotlight"
-          style={{
-            left: targetRect.left - 5,
-            top: targetRect.top - 5,
-            width: targetRect.width + 10,
-            height: targetRect.height + 10,
-          }}
+          style={{ left: layout.hx, top: layout.hy, width: layout.hw, height: layout.hh }}
         />
       )}
       <section
+        ref={calloutRef}
         role="dialog"
         aria-modal="false"
         aria-labelledby="tour-title"
         dir="rtl"
-        className={`tour-bar ${isFinalStep ? 'tour-bar-finale' : ''}`}
-        style={{ top: barTop }}
+        className={`tour-bar ${isFinalStep ? 'tour-bar-finale' : ''} ${hasTarget ? '' : 'tour-bar-center'}`}
+        style={placed}
       >
-        <span className="tour-bar-icon" aria-hidden>
-          {isFinalStep ? <Check className="size-4" /> : <Sparkles className="size-4" />}
-        </span>
-        <div className="tour-bar-text">
+        {hasTarget && layout && (
+          <span
+            className={`tour-arrow ${layout.below ? 'tour-arrow-up' : 'tour-arrow-down'}`}
+            style={{ left: layout.arrowX }}
+            aria-hidden
+          />
+        )}
+        <div className="tour-bar-head">
+          <span className="tour-bar-icon" aria-hidden>
+            {isFinalStep ? <Check className="size-3.5" /> : <Sparkles className="size-3.5" />}
+          </span>
           <h2 id="tour-title" className="tour-bar-title">
             {waitingForAction && <span className="tour-pulse-dot" aria-hidden />}
             {step.title}
           </h2>
-          <p className="tour-bar-body">
-            {missingTarget && step.selector ? 'العنصر مش ظاهر هنا، كمّل للخطوة اللي بعدها.' : step.body}
-          </p>
-          {error && <p role="alert" className="tour-bar-error">{error}</p>}
+          {!isFinalStep && (
+            <button type="button" className="tour-bar-close" onClick={() => void finishTour()} disabled={finishing} aria-label="تخطي الجولة">
+              <X className="size-3.5" aria-hidden />
+            </button>
+          )}
         </div>
-        <div className="tour-bar-side">
+        <p className="tour-bar-body">
+          {missingTarget && step.selector ? 'العنصر مش ظاهر هنا، كمّل للخطوة اللي بعدها.' : step.body}
+        </p>
+        {error && <p role="alert" className="tour-bar-error">{error}</p>}
+        <div className="tour-bar-foot">
           <span className="tour-bar-count">{isFinalStep ? steps.length : stepIndex + 1}/{steps.length}</span>
           {isFinalStep ? (
             <button type="button" className="tour-bar-button" onClick={() => void finishTour()} disabled={finishing}>
@@ -319,11 +362,6 @@ export function OnboardingTour({
           ) : waitingForAction ? null : (
             <button type="button" className="tour-bar-button" onClick={advance} aria-label="الخطوة التالية">
               التالي <ArrowLeft className="size-3.5" aria-hidden />
-            </button>
-          )}
-          {!isFinalStep && (
-            <button type="button" className="tour-bar-close" onClick={() => void finishTour()} disabled={finishing} aria-label="تخطي الجولة">
-              <X className="size-4" aria-hidden />
             </button>
           )}
         </div>
