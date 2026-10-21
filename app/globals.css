@@ -1,0 +1,556 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: var(--font-plex), ui-sans-serif, system-ui, sans-serif;
+  --color-highlight: var(--highlight);
+  --color-highlight-foreground: var(--highlight-foreground);
+  --color-success: var(--success);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+}
+
+:root {
+  color-scheme: light;
+  --background: oklch(0.975 0.008 85);
+  --foreground: oklch(0.24 0.02 250);
+  --card: oklch(0.995 0.003 85);
+  --card-foreground: oklch(0.24 0.02 250);
+  --popover: oklch(0.995 0.003 85);
+  --popover-foreground: oklch(0.24 0.02 250);
+  --primary: oklch(0.46 0.08 195);
+  --primary-foreground: oklch(0.985 0.005 85);
+  --secondary: oklch(0.94 0.012 85);
+  --secondary-foreground: oklch(0.28 0.02 250);
+  --muted: oklch(0.945 0.01 85);
+  --muted-foreground: oklch(0.5 0.015 250);
+  --accent: oklch(0.93 0.03 195);
+  --accent-foreground: oklch(0.3 0.06 195);
+  --highlight: oklch(0.88 0.11 85);
+  --highlight-foreground: oklch(0.3 0.05 60);
+  --success: oklch(0.55 0.13 150);
+  --destructive: oklch(0.56 0.2 27);
+  --border: oklch(0.9 0.012 85);
+  --input: oklch(0.88 0.012 85);
+  --ring: oklch(0.46 0.08 195);
+  --radius: 0.75rem;
+}
+
+:root {
+  --coral: oklch(0.7 0.16 30);
+  --violet: oklch(0.62 0.16 290);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@media (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  /* Native cursor is hidden ONLY while CursorFx is actually drawing its own
+     (class is toggled from JS), so the user is never left with no cursor. */
+  html.cursor-fx-on,
+  html.cursor-fx-on * {
+    cursor: none !important;
+  }
+  html.cursor-fx-on input,
+  html.cursor-fx-on textarea,
+  html.cursor-fx-on [contenteditable='true'] {
+    cursor: text !important;
+  }
+}
+
+.cursor-ring {
+  position: fixed; left: 0; top: 0; width: 36px; height: 36px;
+  border: 2px solid color-mix(in oklch, var(--primary) 70%, transparent);
+  border-radius: 18px; opacity: 0; pointer-events: none;
+  display: grid; place-items: center;
+  transition: background .2s, border-color .2s, opacity .2s, scale .15s;
+  will-change: transform, width, height;
+}
+.cursor-ring[data-active='true'] {
+  border-color: var(--highlight);
+  background: color-mix(in oklch, var(--highlight) 22%, transparent);
+}
+.cursor-ring[data-down='true'] { scale: .9; }
+
+.cursor-ring .ic-hand, .cursor-ring .ic-grab {
+  position: absolute; width: 16px; height: 16px; opacity: 0; transition: opacity .15s;
+}
+.cursor-ring[data-grab='true'] .ic-hand { opacity: 1; }
+.cursor-ring[data-grabbing='true'] .ic-grab { opacity: 1; }
+
+.cursor-dot {
+  position: fixed; left: 0; top: 0; width: 6px; height: 6px;
+  margin: -3px 0 0 -3px; border-radius: 9999px; opacity: 0;
+  background: var(--coral); box-shadow: 0 0 10px var(--coral);
+  transition: opacity .2s; pointer-events: none;
+}
+.cursor-dot[data-hide='true'] { opacity: 0 !important; }
+
+.cursor-ripple {
+  position: fixed; width: 12px; height: 12px; margin: -6px 0 0 -6px;
+  border-radius: 9999px; border: 2px solid var(--highlight);
+  animation: ripple .5s ease-out forwards; pointer-events: none;
+}
+@keyframes ripple { to { transform: scale(4); opacity: 0; } }
+
+.blob {
+  position: absolute;
+  width: 42vmax;
+  height: 42vmax;
+  border-radius: 9999px;
+  filter: blur(80px);
+  opacity: 0.35;
+  animation: drift 22s ease-in-out infinite alternate;
+}
+.blob-a {
+  background: var(--primary);
+  top: -12vmax;
+  left: -10vmax;
+}
+.blob-b {
+  background: var(--highlight);
+  bottom: -14vmax;
+  right: -8vmax;
+  animation-duration: 26s;
+  animation-delay: -6s;
+}
+.blob-c {
+  background: var(--coral);
+  top: 30%;
+  left: 45%;
+  width: 28vmax;
+  height: 28vmax;
+  opacity: 0.18;
+  animation-duration: 30s;
+  animation-delay: -12s;
+}
+@keyframes drift {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(8vmax, 6vmax) scale(1.15);
+  }
+  100% {
+    transform: translate(-6vmax, 10vmax) scale(0.95);
+  }
+}
+.bg-dots {
+  background-image: radial-gradient(color-mix(in oklch, var(--foreground) 12%, transparent) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+}
+
+.text-gradient {
+  background: linear-gradient(110deg, var(--primary), var(--violet), var(--coral), var(--primary));
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradient-pan 8s linear infinite;
+}
+@keyframes gradient-pan {
+  to {
+    background-position: 300% 0;
+  }
+}
+
+.glow-border {
+  position: relative;
+  background: conic-gradient(from var(--angle, 0deg), var(--primary), var(--highlight), var(--coral), var(--violet), var(--primary));
+  animation: spin-angle 6s linear infinite;
+  box-shadow: 0 20px 60px -20px color-mix(in oklch, var(--primary) 50%, transparent);
+}
+@property --angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes spin-angle {
+  to {
+    --angle: 360deg;
+  }
+}
+
+.logo-glow {
+  animation: logo-float 4s ease-in-out infinite;
+  filter: drop-shadow(0 8px 20px color-mix(in oklch, var(--primary) 45%, transparent));
+}
+@keyframes logo-float {
+  50% {
+    transform: translateY(-6px) rotate(-4deg);
+  }
+}
+
+.rise-in {
+  animation: rise-in 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.group-section {
+  animation: group-section-in 0.65s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.group-card-enter {
+  animation: group-section-in 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.group-card-shine {
+  background: linear-gradient(125deg, color-mix(in oklch, var(--accent) 70%, transparent), transparent 48%);
+}
+.group-heading::after {
+  position: absolute;
+  inset-inline-start: 0;
+  bottom: -1px;
+  width: 5rem;
+  height: 2px;
+  background: linear-gradient(90deg, var(--primary), var(--coral), transparent);
+  content: '';
+  transition: width 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.group-heading:hover::after {
+  width: min(36%, 13rem);
+}
+@keyframes group-section-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .group-section {
+    animation: none;
+  }
+  .group-card-enter {
+    animation: none;
+  }
+  .group-heading::after {
+    transition: none;
+  }
+}
+.tour-layer {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  pointer-events: none;
+}
+.tour-spotlight {
+  position: fixed;
+  z-index: 0;
+  border: 1px solid color-mix(in oklch, var(--primary) 75%, white);
+  border-radius: 14px;
+  box-shadow: 0 0 0 9999px color-mix(in oklch, var(--foreground) 54%, transparent), 0 0 0 5px color-mix(in oklch, var(--primary) 20%, transparent), 0 12px 40px color-mix(in oklch, var(--primary) 30%, transparent);
+  pointer-events: none;
+  transition: all 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.tour-card {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  width: min(380px, calc(100vw - 24px));
+  max-height: min(520px, calc(100dvh - 24px));
+  overflow: auto;
+  padding: 22px;
+  border: 1px solid color-mix(in oklch, var(--primary) 20%, var(--border));
+  border-radius: 20px;
+  background: linear-gradient(145deg, color-mix(in oklch, var(--card) 96%, white), var(--card));
+  box-shadow: 0 28px 100px color-mix(in oklch, var(--foreground) 28%, transparent), 0 4px 24px color-mix(in oklch, var(--primary) 14%, transparent);
+  pointer-events: auto;
+  transform: translate(-50%, -50%);
+  animation: tour-card-in 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.tour-card-targeted {
+  transform: none;
+  animation-name: tour-card-target-in;
+}
+.tour-card-finale {
+  border-color: color-mix(in oklch, var(--success) 35%, var(--border));
+  box-shadow: 0 28px 100px color-mix(in oklch, var(--foreground) 28%, transparent), 0 0 50px color-mix(in oklch, var(--success) 16%, transparent);
+}
+.tour-card-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.tour-step-count {
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.tour-skip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  transition: color 0.2s;
+}
+.tour-skip:hover {
+  color: var(--foreground);
+}
+.tour-progress-track {
+  height: 3px;
+  margin-top: 13px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--muted);
+}
+.tour-progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--primary), var(--coral), var(--success));
+  transition: width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.tour-icon-wrap {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  margin-top: 20px;
+  place-items: center;
+  border: 1px solid color-mix(in oklch, var(--primary) 18%, transparent);
+  border-radius: 13px;
+  background: linear-gradient(145deg, var(--accent), color-mix(in oklch, var(--highlight) 35%, var(--card)));
+  color: var(--primary);
+  box-shadow: 0 7px 20px color-mix(in oklch, var(--primary) 12%, transparent);
+}
+.tour-card-finale .tour-icon-wrap {
+  border-color: color-mix(in oklch, var(--success) 24%, transparent);
+  background: color-mix(in oklch, var(--success) 12%, var(--card));
+  color: var(--success);
+  animation: finale-icon 1.8s ease-in-out infinite;
+}
+.tour-action-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.tour-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--coral);
+  box-shadow: 0 0 0 0 color-mix(in oklch, var(--coral) 45%, transparent);
+  animation: tour-pulse 1.6s ease-out infinite;
+}
+.tour-primary-button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 10px;
+  padding: 0 14px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 5px 14px color-mix(in oklch, var(--primary) 22%, transparent);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.tour-primary-button:hover:not(:disabled) {
+  box-shadow: 0 8px 22px color-mix(in oklch, var(--primary) 30%, transparent);
+  transform: translateY(-1px);
+}
+.tour-primary-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+.tour-confetti {
+  position: absolute;
+  top: 100px;
+  right: 30px;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+.tour-confetti i {
+  position: absolute;
+  width: 6px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--coral);
+  animation: confetti-burst 1.4s cubic-bezier(0.1, 0.7, 0.3, 1) both;
+}
+.tour-confetti i:nth-child(3n) { background: var(--primary); }
+.tour-confetti i:nth-child(3n + 1) { background: var(--highlight); }
+.tour-confetti i:nth-child(1) { --x: -55px; --y: -34px; --r: -70deg; }
+.tour-confetti i:nth-child(2) { --x: -32px; --y: -57px; --r: 40deg; }
+.tour-confetti i:nth-child(3) { --x: 4px; --y: -62px; --r: 85deg; }
+.tour-confetti i:nth-child(4) { --x: 40px; --y: -48px; --r: -20deg; }
+.tour-confetti i:nth-child(5) { --x: 60px; --y: -15px; --r: 65deg; }
+.tour-confetti i:nth-child(6) { --x: 52px; --y: 22px; --r: -50deg; }
+.tour-confetti i:nth-child(7) { --x: 28px; --y: 48px; --r: 25deg; }
+.tour-confetti i:nth-child(8) { --x: -8px; --y: 52px; --r: 90deg; }
+.tour-confetti i:nth-child(9) { --x: -42px; --y: 37px; --r: -35deg; }
+.tour-confetti i:nth-child(10) { --x: -62px; --y: 4px; --r: 55deg; }
+.tour-confetti i:nth-child(11) { --x: -22px; --y: -20px; --r: -15deg; }
+.tour-confetti i:nth-child(12) { --x: 23px; --y: 8px; --r: 72deg; }
+@keyframes tour-card-in {
+  from { opacity: 0; filter: blur(5px); transform: translate(-50%, -46%) scale(0.97); }
+  to { opacity: 1; filter: blur(0); transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes tour-card-target-in {
+  from { opacity: 0; filter: blur(5px); transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; filter: blur(0); transform: none; }
+}
+@keyframes tour-pulse {
+  70% { box-shadow: 0 0 0 7px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+@keyframes finale-icon {
+  50% { transform: translateY(-3px) rotate(4deg); }
+}
+@keyframes confetti-burst {
+  from { opacity: 0; transform: translate(0, 0) rotate(0); }
+  20% { opacity: 1; }
+  to { opacity: 0; transform: translate(var(--x), var(--y)) rotate(var(--r)); }
+}
+@media (max-width: 640px) {
+  .tour-card { padding: 18px; }
+  .tour-card-targeted { left: 12px !important; top: auto !important; bottom: 12px; width: calc(100vw - 24px) !important; max-height: min(380px, calc(100dvh - 24px)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tour-card, .tour-confetti i, .tour-pulse-dot, .tour-card-finale .tour-icon-wrap { animation: none; }
+  .tour-spotlight, .tour-progress-track span, .tour-primary-button { transition: none; }
+}
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+}
+.pop-in {
+  animation: pop-in 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
+  transform-origin: top right;
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(-4px);
+  }
+}
+
+.float-card {
+  transform: rotate(var(--r));
+  animation: float-card 7s ease-in-out infinite;
+}
+@keyframes float-card {
+  50% {
+    transform: rotate(calc(var(--r) * -0.5)) translateY(-18px);
+  }
+}
+.blank-pulse {
+  animation: blank-pulse 2.4s ease-in-out infinite;
+}
+@keyframes blank-pulse {
+  50% {
+    box-shadow: 0 0 0 4px color-mix(in oklch, var(--highlight) 45%, transparent);
+  }
+}
+
+.card-flip {
+  animation: card-flip 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes card-flip {
+  from {
+    opacity: 0;
+    transform: perspective(900px) rotateY(-18deg) translateX(24px);
+  }
+}
+.word-pop {
+  animation: word-pop 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
+}
+@keyframes word-pop {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+}
+.blank-next {
+  box-shadow: 0 0 0 2px var(--highlight);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+@layer components {
+  .auth-input {
+    width: 100%;
+    height: 2.75rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--border);
+    background: color-mix(in oklch, var(--background) 70%, transparent);
+    padding-inline: 2.5rem 0.875rem;
+    font-size: 16px; /* يمنع الآيفون من عمل زووم */
+    color: var(--foreground);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .auth-input::placeholder {
+    color: var(--muted-foreground);
+  }
+  .auth-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--primary) 20%, transparent);
+  }
+}
+
+/* Word-like rich text editor (admin source panel) */
+.word-editor-content { max-height: 32rem; overflow-y: auto; }
+.word-editor-content p { margin: 0 0 0.6em; }
+.word-editor-content h1 { font-size: 1.6em; font-weight: 700; margin: 0.6em 0 0.4em; }
+.word-editor-content h2 { font-size: 1.3em; font-weight: 700; margin: 0.6em 0 0.4em; }
+.word-editor-content h3 { font-size: 1.1em; font-weight: 700; margin: 0.6em 0 0.4em; }
+.word-editor-content ul { list-style: disc; padding-inline-start: 1.5em; margin: 0 0 0.6em; }
+.word-editor-content ol { list-style: decimal; padding-inline-start: 1.5em; margin: 0 0 0.6em; }
+.word-editor-content blockquote { border-inline-start: 3px solid var(--border); padding-inline-start: 0.8em; color: var(--muted-foreground); margin: 0 0 0.6em; }
+.word-editor-content mark { background: #fde68a; color: inherit; padding: 0 0.1em; border-radius: 2px; }
+.word-editor-content table { border-collapse: collapse; width: 100%; table-layout: fixed; margin: 0.6em 0; overflow: hidden; }
+.word-editor-content th, .word-editor-content td { border: 1px solid var(--border); padding: 0.4em 0.6em; vertical-align: top; position: relative; min-width: 1em; }
+.word-editor-content th { background: var(--muted); font-weight: 600; text-align: start; }
+.word-editor-content .selectedCell::after { content: ''; position: absolute; inset: 0; background: color-mix(in oklab, var(--ring) 25%, transparent); pointer-events: none; }
+.word-editor-content .column-resize-handle { position: absolute; top: 0; bottom: -2px; inset-inline-end: -2px; width: 4px; background: var(--ring); pointer-events: none; }
+.word-editor-content .tableWrapper { overflow-x: auto; }
+.word-editor-content p.is-editor-empty:first-child::before { content: attr(data-placeholder); float: inline-start; height: 0; pointer-events: none; color: var(--muted-foreground); }
