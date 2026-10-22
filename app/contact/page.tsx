@@ -1,10 +1,10 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { Clock, Mail, MessageSquare, Phone, ShieldCheck } from 'lucide-react'
+import { Clock, Mail, MessageCircle, MessageSquare, Phone, ShieldCheck } from 'lucide-react'
 import { PageShell } from '@/components/legal-page'
 import { ContactForm } from '@/components/contact-form'
 import { getSession } from '@/lib/auth'
-import { SITE } from '@/lib/site'
+import { SITE, whatsappLink } from '@/lib/site'
 
 export const metadata: Metadata = {
   title: 'Contact us | Kart w Ketab',
@@ -28,16 +28,24 @@ export default async function ContactPage() {
 
         <aside className="flex flex-col gap-4">
           {SITE.contactPhone && (
-  <InfoCard icon={Phone} title="Phone / WhatsApp">
-    <a
-      href={`tel:${SITE.contactPhone}`}
-      className="font-medium text-primary underline underline-offset-4"
-      dir="ltr"
-    >
-      {SITE.contactPhone}
-    </a>
-  </InfoCard>
-)}
+            <InfoCard icon={Phone} title="Phone / WhatsApp">
+              <a
+                href={`tel:${SITE.contactPhone}`}
+                className="font-medium text-primary underline underline-offset-4"
+                dir="ltr"
+              >
+                {SITE.contactPhone}
+              </a>
+              <a
+                href={whatsappLink('Hello, I have a question about Kart w Ketab')}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 flex w-fit items-center gap-2 rounded-full bg-[#25D366] px-3.5 py-1.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+              >
+                <MessageCircle className="size-4" aria-hidden /> Chat on WhatsApp
+              </a>
+            </InfoCard>
+          )}
           {SITE.contactEmail && (
             <InfoCard icon={Mail} title="Email">
               <a href={`mailto:${SITE.contactEmail}`} className="break-all font-medium text-primary underline underline-offset-4">
