@@ -27,6 +27,17 @@ export default async function ContactPage() {
         </section>
 
         <aside className="flex flex-col gap-4">
+          {SITE.contactPhone && (
+  <InfoCard icon={Phone} title="Phone / WhatsApp">
+    <a
+      href={`tel:${SITE.contactPhone}`}
+      className="font-medium text-primary underline underline-offset-4"
+      dir="ltr"
+    >
+      {SITE.contactPhone}
+    </a>
+  </InfoCard>
+)}
           {SITE.contactEmail && (
             <InfoCard icon={Mail} title="Email">
               <a href={`mailto:${SITE.contactEmail}`} className="break-all font-medium text-primary underline underline-offset-4">
