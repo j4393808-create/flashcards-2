@@ -1,13 +1,11 @@
-import Link from 'next/link'
 import { SiteHeader } from '@/components/site-header'
+import { SiteFooter } from '@/components/site-footer'
 import { RedeemForm } from '@/components/redeem-form'
 import { GroupBrowser } from '@/components/group-browser'
 import { getDeckGroups, getDeckSummaries } from '@/lib/decks'
 import { canOpen, getAccess } from '@/lib/access'
-import { getSession } from '@/lib/auth'
 
 export default async function HomePage() {
-  const session = await getSession()
   const [decks, groups, access] = await Promise.all([getDeckSummaries(), getDeckGroups(), getAccess()])
   const hasPaid = decks.some((d) => !d.isFree)
 
@@ -37,13 +35,7 @@ export default async function HomePage() {
           })).filter((group) => group.decks.length > 0)}
         />
       </main>
-            {session?.isAdmin && (
-        <footer className="border-t py-6 text-center text-xs text-muted-foreground">
-          <Link href="/admin" data-tour="admin-link" data-tour-action="open-admin" className="hover:text-foreground">
-            Admin panel
-          </Link>
-        </footer>
-      )}
+      <SiteFooter />
     </div>
   )
 }

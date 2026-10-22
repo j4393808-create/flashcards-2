@@ -3,6 +3,8 @@ import { Logo } from '@/components/logo'
 import { AuthForm } from '@/components/auth/auth-form'
 import { FloatingCards } from '@/components/auth/floating-cards'
 import { SettingsMenu } from '@/components/settings-menu'
+import { FOOTER_LINKS } from '@/lib/site'
+import Link from 'next/link'
 
 export const metadata: Metadata = {
   title: 'Sign in | Kart w Ketab'
@@ -14,7 +16,7 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
   const nextPath = typeof next === 'string' ? next : '/'
 
   return (
-    <div className="relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-6 sm:py-10">
+    <div className="relative flex min-h-dvh items-center justify-center overflow-hidden px-4 pb-14 pt-6 sm:pb-16 sm:pt-10">
       <FloatingCards />
       <div className="absolute right-3 top-3 sm:right-4 sm:top-4 z-20">
         <SettingsMenu showTutorialButton={false} />
@@ -48,6 +50,17 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
 
         <AuthForm next={nextPath} />
       </main>
+
+      <nav
+        aria-label="Legal"
+        className="absolute inset-x-0 bottom-3 z-10 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 px-4 text-xs text-muted-foreground"
+      >
+        {FOOTER_LINKS.map((l) => (
+          <Link key={l.href} href={l.href} className="transition-colors hover:text-primary">
+            {l.label}
+          </Link>
+        ))}
+      </nav>
     </div>
   )
 }
