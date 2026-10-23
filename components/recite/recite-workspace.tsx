@@ -3,38 +3,18 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { EditorContent, useEditor, useEditorState } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
-import Placeholder from '@tiptap/extension-placeholder'
-import { ArrowLeft, Bold, CheckCheck, Italic, KeyRound, Loader2, Redo2, Sparkles, Underline, Undo2 } from 'lucide-react'
+import { ArrowLeft, CheckCheck, KeyRound, Loader2, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useGeminiConfig } from '@/lib/gemini'
 import { ApiKeyDialog } from '@/components/recite/api-key-dialog'
+import { EditorToolbar } from '@/components/recite/editor-toolbar'
+import { createReciteExtensions } from '@/components/recite/editor-extensions'
+import { reciteFontVars } from '@/components/recite/fonts'
 
 type Lesson = { id: string; title: string; subject: string }
 type SaveState = 'idle' | 'saving' | 'saved'
 
 const draftKey = (id: string) => `kwk:recite:draft:${id}`
-
-function ToolButton({ label, active, disabled, onClick, children }: { label: string; active?: boolean; disabled?: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      title={label}
-      aria-label={label}
-      aria-pressed={active}
-      disabled={disabled}
-      // Keep the editor selection when tapping toolbar buttons.
-      onMouseDown={(e) => e.preventDefault()}
-      onClick={onClick}
-      className={cn(
-        'flex size-9 items-center justify-center rounded-lg text-neutral-600 transition-colors hover:bg-neutral-100 disabled:opacity-30',
-        active && 'bg-primary/10 text-primary',
-      )}
-    >
-      {children}
-    </button>
-  )
-}
 
 export function ReciteWorkspace({ lesson, reference }: { lesson: Lesson; reference: string }) {
   const [keyOpen, setKeyOpen] = useState(false)
@@ -45,10 +25,7 @@ export function ReciteWorkspace({ lesson, reference }: { lesson: Lesson; referen
 
   const editor = useEditor({
     immediatelyRender: false,
-    extensions: [
-      StarterKit,
-      Placeholder.configure({ placeholder: 'ابدأ اكتب كل اللي فاكره من الدرس هنا...' }),
-    ],
+    extensions: createReciteExtensions(),
     editorProps: {
       attributes: {
         dir: 'auto',
@@ -83,11 +60,6 @@ export function ReciteWorkspace({ lesson, reference }: { lesson: Lesson; referen
   const s = useEditorState({
     editor,
     selector: ({ editor }) => ({
-      bold: editor?.isActive('bold') ?? false,
-      italic: editor?.isActive('italic') ?? false,
-      underline: editor?.isActive('underline') ?? false,
-      canUndo: editor?.can().undo() ?? false,
-      canRedo: editor?.can().redo() ?? false,
       words: editor?.getText().trim().split(/\s+/).filter(Boolean).length ?? 0,
     }),
   })
@@ -100,7 +72,7 @@ export function ReciteWorkspace({ lesson, reference }: { lesson: Lesson; referen
   }
 
   return (
-    <div className="flex h-dvh flex-col bg-neutral-200/70">
+    <div className={cn('flex h-dvh flex-col bg-neutral-200/70', reciteFontVars)}>
       <header className="z-30 flex shrink-0 items-center gap-2 border-b bg-white px-3 py-2">
         <Link href="/recite" aria-label="رجوع" className="flex size-9 items-center justify-center rounded-lg text-neutral-600 hover:bg-neutral-100">
           <ArrowLeft className="size-5" aria-hidden />
@@ -127,15 +99,8 @@ export function ReciteWorkspace({ lesson, reference }: { lesson: Lesson; referen
         </button>
       </header>
 
-      <div className="z-20 flex shrink-0 items-center gap-1 overflow-x-auto border-b bg-white px-3 py-1.5">
-        <ToolButton label="تراجع" disabled={!s?.canUndo} onClick={() => editor?.chain().focus().undo().run()}><Undo2 className="size-4" aria-hidden /></ToolButton>
-        <ToolButton label="إعادة" disabled={!s?.canRedo} onClick={() => editor?.chain().focus().redo().run()}><Redo2 className="size-4" aria-hidden /></ToolButton>
-        <span className="mx-1 h-5 w-px bg-neutral-200" aria-hidden />
-        <ToolButton label="عريض" active={s?.bold} onClick={() => editor?.chain().focus().toggleBold().run()}><Bold className="size-4" aria-hidden /></ToolButton>
-        <ToolButton label="مائل" active={s?.italic} onClick={() => editor?.chain().focus().toggleItalic().run()}><Italic className="size-4" aria-hidden /></ToolButton>
-        <ToolButton label="تحته خط" active={s?.underline} onClick={() => editor?.chain().focus().toggleUnderline().run()}><Underline className="size-4" aria-hidden /></ToolButton>
-        <span className="ms-auto shrink-0 ps-3 text-xs text-neutral-500">{s?.words ?? 0} كلمة</span>
-      </div>
+      <EditorToolbar editor={editor} />
+      <p className="shrink-0 border-b bg-white px-4 py-1 text-end text-xs text-neutral-500">{s?.words ?? 0} كلمة</p>
 
       {notice && (
         <p role="status" onClick={() => setNotice('')} className="shrink-0 cursor-pointer bg-highlight px-4 py-2 text-center text-sm text-highlight-foreground">
