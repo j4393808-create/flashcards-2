@@ -21,7 +21,7 @@ export async function SiteHeader({ children }: { children?: React.ReactNode }) {
             href="/recite"
             className="flex items-center gap-1.5 rounded-full border bg-card/70 px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-accent sm:text-sm"
           >
-            <PenLine className="size-3.5" aria-hidden /> تسميع
+            <PenLine className="size-3.5" aria-hidden /> <span className="hidden sm:inline">تسميع</span><span className="sm:hidden">تسميع</span>
           </Link>
           {session?.isAdmin && (
             <Link

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { ArrowLeft, ArrowRight, FolderOpen, KeyRound, Lock, PenLine, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useGeminiConfig } from '@/lib/gemini'
+import { SectionSwitcher } from '@/components/section-switcher'
 import { ApiKeyDialog } from '@/components/recite/api-key-dialog'
 
 export type ReciteDeck = { id: string; title: string; subject: string; description: string; cardCount: number; open: boolean }
@@ -18,6 +19,7 @@ export function ReciteBrowser({ groups }: { groups: ReciteGroup[] }) {
 
   return (
     <>
+      <SectionSwitcher active="recite" />
       <section className="mb-8 flex flex-col gap-4 rounded-2xl border bg-card p-5 sm:flex-row sm:items-center sm:justify-between" dir="rtl">
         <div className="flex items-start gap-3">
           <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-highlight text-highlight-foreground">
